@@ -1,33 +1,11 @@
 /*	
-* noise_remover_v1.cu
-*
-* This program removes noise from an image based on Speckle Reducing Anisotropic Diffusion
-* Y. Yu, S. Acton, Speckle reducing anisotropic diffusion, 
-* IEEE Transactions on Image Processing 11(11)(2002) 1260-1270 <http://people.virginia.edu/~sc5nf/01097762.pdf>
-* Original implementation is Modified by Burak BASTEM
-*
-* This code was developed based on the Rodinia Benchmark Suite and
-* some changes have been made on this algorithm.
-* 
-* IMPORTANT: 
-* 
-* The final version of this code has been developed by Mustafa SARAÇ and Mustafa Mert ÖGETÜRK
-* as a project of Parallel Programming (COMP 429) course. Koç University's code of ethics
-* can be applied to this code and liability can not be accepted for any negative situation. 
-* Therefore, be careful when you get content from here.
-*
-* The serialized version of the noise removal algorithm was parallelized using various
-* methods via the CUDA library. 
-* 
-* The parallelization process consists of 3 steps in total and these are as follows:
-*  - noise_remover_v1.cu (Naive implementation)
-*  - noise_remover_v2.cu (Using Temporary Variables to Eliminate Global Memory References) 
-*  - noise_remover_v3.cu (Using Shared Memory on the GPU)
-*
-* For more detailed questions you can review our project report.
-*  
-* You can also contact me at this email address: msarac13@ku.edu.tr
-*/
+ * noise_remover_v1.cu
+ *
+ * This program removes noise from an image based on Speckle Reducing Anisotropic Diffusion
+ * Y. Yu, S. Acton, Speckle reducing anisotropic diffusion, 
+ * IEEE Transactions on Image Processing 11(11)(2002) 1260-1270 <http://people.virginia.edu/~sc5nf/01097762.pdf>
+ * Original implementation is Modified by Burak BASTEM
+ */
 
 #include <cuda_runtime.h>
 #include <cuda.h>
