@@ -31,11 +31,10 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=short
 #SBATCH --qos=users
-#SBATCH --gres=gpu:1
-#SBATCH --time=120:00
-#SBATCH --output=%j-mumax.out
-#SBATCH --mail-type=ALL
-# #SBATCH --mail-user=foo@bar.com
+#SBATCH --gres=gpu:tesla_k20m:1 
+#SBATCH --output=serial.out
+
+
 
 ### Mumax3 only GPU works
 #SBATCH --gres=gpu:1
@@ -73,10 +72,7 @@ echo
 ##################### !!! DO NOT EDIT ABOVE THIS LINE !!! ######################
 ################################################################################
 
-echo "Running MUMAX3 command..."
+echo "Running Serial..."
 echo "==========================="
-mumax3 $INPUT
-RET=$?
-echo ""
-echo "RTC exited with return code: $RET"
-exit $RET
+./noise_remover -i ./images/coffee.pmg -iter 100 -o denoised_coffee.png
+
