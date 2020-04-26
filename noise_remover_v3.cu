@@ -52,7 +52,7 @@ __global__ void compute1(int height, int width, long k, unsigned char *image_d, 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if(i < height && j < width) {
+	if(i > 0 && i < height && j > 0 && j < width) {
 		k = i * width + j;	// position of current element
 
 		image_s[threadIdx.x][threadIdx.y] = image_d[k];
@@ -107,7 +107,7 @@ __global__ void compute2(int height, int width, long k, unsigned char *image_d, 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if(i < height && j < width) {
+	if((i > 0 && i < height && j > 0 && j < width) {
 		k = i * width + j;	// get position of current element
 		diff_coef_north = diff_coef_d[k];	// north diffusion coefficient
 		diff_coef_south = diff_coef_d[(i + 1) * width + j];	// south diffusion coefficient
@@ -130,12 +130,12 @@ __global__ void summation(unsigned char *image_d, float *sum_d, float *sum2_d, i
 
 	int length = height * width * pixelWidth;
 
-	if((start + threadId) < length) 
+	if((start + threadId) <= length) 
 		seg_sum[threadId] = image_d[start + threadId];
 	else
 		seg_sum[threadId] = 0.0;
 
-	if((start + blockDim.x + threadId) < length)
+	if((start + blockDim.x + threadId) <= length)
 		seg_sum[blockDim.x + threadId] = image_d[start + blockDim.x + threadId]; 
 	else
 		seg_sum[blockDim.x + threadId] = 0.0;
@@ -149,7 +149,7 @@ __global__ void summation(unsigned char *image_d, float *sum_d, float *sum2_d, i
 
 		__syncthreads();
 
-		if(threadId == 0 && (globalThreadId * 2) < length){
+		if(threadId == 0 && (globalThreadId * 2) <= length){
 			sum_d[blockIdx.x] = seg_sum[threadId];
   			sum2_d[blockIdx.x] = seg_sum[threadId]*seg_sum[threadId];
 		}
@@ -274,12 +274,12 @@ int main(int argc, char *argv[]) {
 		std_dev = variance / (mean * mean); // --- 2 floating point arithmetic operations
 
 		// COMPUTE 1
-		compute1<<<grid,threads>>>(height-1, width-1, k, image_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d, gradient_square, laplacian, num, den, std_dev, std_dev2, diff_coef_d);
+		compute1<<<grid,threads>>>(height, width, k, image_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d, gradient_square, laplacian, num, den, std_dev, std_dev2, diff_coef_d);
 		cudaDeviceSynchronize();
 
 		// COMPUTE 2 
 
-		compute2<<<grid,threads>>>(height -1, width -1, k, image_d, lambda, diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east, divergence, diff_coef_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d);
+		compute2<<<grid,threads>>>(height, width, k, image_d, lambda, diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east, divergence, diff_coef_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d);
 
 		// Memory Copying Output Image to the host
 		cudaMemcpy(image,image_d,sizeof(unsigned char)*n_pixels * pixelWidth, cudaMemcpyDeviceToHost);
