@@ -74,5 +74,5 @@ echo
 
 echo "Running Serial..."
 echo "==========================="
-./noise_remover -i ./images/coffee.pmg -iter 100 -o denoised_coffee.png
+./noise_remover -i ./images/coffee.pgm -iter 100 -o denoised_coffee.png
 
