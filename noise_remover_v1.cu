@@ -318,6 +318,6 @@ int main(int argc, char *argv[])
 	printf("Total time: %9.6f s\n", (time_8 - time_0));
 	printf("Average of sum of pixels: %9.6f\n", test);
 	printf("GFLOPS: %f\n", gflops);
-	printf("blocksize: %d", blocksize)
+	printf("blocksize: %d", blocksize);
 	return 0;
 }
