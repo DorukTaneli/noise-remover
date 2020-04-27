@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
 	float mean, variance, std_dev;	//local region statistics
 	float *north_deriv, *south_deriv, *west_deriv, *east_deriv;	// directional derivatives
 	float *north_deriv_d, *south_deriv_d, *west_deriv_d, *east_deriv_d; // derivatives in the device
-	float tmp, sum, sum2;	// calculation variables
+	float sum, sum2;	// calculation variables
 	float *sum_d;	// variable in the device
 	float *sum2_d;	// variable in the device
 	float gradient_square, laplacian, num, den, std_dev2, divergence;	// calculation variables
