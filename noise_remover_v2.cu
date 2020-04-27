@@ -148,6 +148,7 @@ int main(int argc, char *argv[]) {
 	const char *outputname = "output.png";	
 	int width, height, pixelWidth, n_pixels;
 	int n_iter = 50;
+	int blocksize = 16;
 	float lambda = 0.5;
 	float mean, variance, std_dev;	//local region statistics
 	float *north_deriv, *south_deriv, *west_deriv, *east_deriv;	// directional derivatives
@@ -179,8 +180,10 @@ int main(int argc, char *argv[]) {
 			lambda = atof(argv[++ac]);
 		} else if(MATCH("-o")) {
 			outputname = argv[++ac];
+		} else if(MATCH("-b")) {
+			blocksize = atoi(argv[++ac]);
 		} else {
-		printf("Usage: %s [-i < filename>] [-iter <n_iter>] [-l <lambda>] [-o <outputfilename>]\n",argv[0]);
+		printf("Usage: %s [-i < filename>] [-iter <n_iter>] [-l <lambda>] [-o <outputfilename>] [-b <blocksize>]\n",argv[0]);
 		return(-1);
 		}
 	}
@@ -231,7 +234,7 @@ int main(int argc, char *argv[]) {
 	cudaMemcpy((void**)diff_coef_d, diff_coef, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
 
 	// setup execution configurations, creating 2D threads 
-	dim3 threads(16, 16, 1);
+	dim3 threads(blocksize, blocksize, 1);
 	dim3 grid(height/threads.x, width/threads.y);
 
 	
@@ -320,5 +323,6 @@ int main(int argc, char *argv[]) {
 	printf("Total time: %9.6f s\n", (time_8 - time_0));
 	printf("Average of sum of pixels: %9.6f\n", test);
 	printf("GFLOPS: %f\n", gflops);
+	printf("V2 blocksize: %d\n", blocksize);
 	return 0;
 }

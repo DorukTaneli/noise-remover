@@ -71,27 +71,42 @@ echo
 ################################################################################
 ##################### !!! DO NOT EDIT ABOVE THIS LINE !!! ######################
 ################################################################################
-
-echo "Running Serial..."
 echo "==========================="
+echo "Running Serial..."
 ./noise_remover -i ./images/coffee.pgm -iter 100 -o denoised_coffee.png
 
-echo "Running v1 blocksize 16..."
 echo "==========================="
+echo "Running v1 blocksize 16..."
 ./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 16
 
-echo "Running v1 blocksize 32..."
 echo "==========================="
+echo "Running v1 blocksize 32..."
 ./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 32
 
-echo "Running v1 blocksize 64..."
 echo "==========================="
+echo "Running v1 blocksize 64..."
 ./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 64
 
-echo "Running v2..."
 echo "==========================="
-./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png
+echo "Running v2 blocksize 16..."
+./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png -b 16
 
-echo "Running v3..."
 echo "==========================="
-./noise_remover_v3 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v3.png
+echo "Running v2 blocksize 32..."
+./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png -b 32
+
+echo "==========================="
+echo "Running v2 blocksize 64..."
+./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png -b 64
+
+echo "==========================="
+echo "Running v3 blocksize 16..."
+./noise_remover_v3 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v3.png -b 16
+
+echo "==========================="
+echo "Running v3 blocksize 32..."
+./noise_remover_v3 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v3.png -b 32
+
+echo "==========================="
+echo "Running v3 blocksize 64..."
+./noise_remover_v3 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v3.png -b 64
