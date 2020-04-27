@@ -85,7 +85,7 @@ echo "Running v1 blocksize 16..."
 
 echo "==========================="
 echo "Running v1 blocksize 256..."
-./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 256
+./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png
 
 echo "==========================="
 echo "Running v2 blocksize 8..."
