@@ -240,8 +240,6 @@ int main(int argc, char *argv[]) {
 	cudaMalloc((void**)&image_d, (sizeof(unsigned char)*n_pixels) * pixelWidth);
 	cudaMalloc((void**)&diff_coef_d, sizeof(float)*n_pixels);
 
-	time_4 = get_time();
-
 	// Memory Copying to the device 
 	cudaMemcpy((void**)sum_d, &sum, sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy((void**)sum2_d, &sum2, sizeof(float), cudaMemcpyHostToDevice);
@@ -251,6 +249,8 @@ int main(int argc, char *argv[]) {
 	cudaMemcpy((void**)west_deriv_d, west_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
 	cudaMemcpy((void**)image_d, image, (sizeof(unsigned char)*n_pixels) * pixelWidth, cudaMemcpyHostToDevice);
 	cudaMemcpy((void**)diff_coef_d, diff_coef, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
+
+	time_4 = get_time();
 
 	// setup execution configurations, creating 2D threads 
 	dim3 threads(BLOCK_SIZE, BLOCK_SIZE, 1);
