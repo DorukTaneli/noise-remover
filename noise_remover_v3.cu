@@ -107,7 +107,7 @@ __global__ void compute2(int height, int width, long k, unsigned char *image_d, 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if((i > 0 && i < height && j > 0 && j < width) {
+	if(i > 0 && i < height && j > 0 && j < width) {
 		k = i * width + j;	// get position of current element
 		diff_coef_north = diff_coef_d[k];	// north diffusion coefficient
 		diff_coef_south = diff_coef_d[(i + 1) * width + j];	// south diffusion coefficient
