@@ -32,7 +32,7 @@
 #SBATCH --partition=short
 #SBATCH --qos=users
 #SBATCH --gres=gpu:tesla_k20m:1 
-#SBATCH --output=serial.out
+#SBATCH --output=results.out
 
 
 
