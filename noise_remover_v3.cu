@@ -21,7 +21,7 @@
 
 #define MATCH(s) (!strcmp(argv[ac], (s)))
 
-#define BLOCK_SIZE 256
+#define BLOCK_SIZE 128
 
 static const double kMicro = 1.0e-6;
 
