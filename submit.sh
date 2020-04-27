@@ -101,12 +101,4 @@ echo "Running v2 blocksize 64..."
 
 echo "==========================="
 echo "Running v3 blocksize 16..."
-./noise_remover_v3 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v3.png -b 16
-
-echo "==========================="
-echo "Running v3 blocksize 32..."
-./noise_remover_v3 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v3.png -b 32
-
-echo "==========================="
-echo "Running v3 blocksize 64..."
-./noise_remover_v3 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v3.png -b 64
+./noise_remover_v3 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v3.png
