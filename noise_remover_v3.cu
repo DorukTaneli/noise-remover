@@ -41,12 +41,12 @@ __global__ void compute1(int height, int width, long k, unsigned char *image_d, 
 						float *south_deriv_d, float *west_deriv_d, float *east_deriv_d, float gradient_square,
 						float laplacian, float num, float den, float std_dev, float std_dev2, float *diff_coef_d)
 {
-	__shared__ unsigned char image_s[BLOCK_SIZE][BLOCK_SIZE];
-	__shared__ float north_s[BLOCK_SIZE][BLOCK_SIZE];
-	__shared__ float south_s[BLOCK_SIZE][BLOCK_SIZE];
-	__shared__ float west_s[BLOCK_SIZE][BLOCK_SIZE];
-	__shared__ float east_s[BLOCK_SIZE][BLOCK_SIZE];
-	__shared__ float diff_coef_s[BLOCK_SIZE][BLOCK_SIZE];
+	__shared__ unsigned char image_s[blocksize][blocksize];
+	__shared__ float north_s[blocksize][blocksize];
+	__shared__ float south_s[blocksize][blocksize];
+	__shared__ float west_s[blocksize][blocksize];
+	__shared__ float east_s[blocksize][blocksize];
+	__shared__ float diff_coef_s[blocksize][blocksize];
 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
@@ -122,7 +122,7 @@ __global__ void compute2(int height, int width, long k, unsigned char *image_d, 
 // REDUCTION
 __global__ void summation(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
 {
-	__shared__ float seg_sum[2 * BLOCK_SIZE];
+	__shared__ float seg_sum[2 * blocksize];
 	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
 	unsigned int threadId = threadIdx.x;
 	unsigned int start = 2 * blockIdx.x * blockDim.x;
