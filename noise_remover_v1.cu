@@ -22,6 +22,8 @@
 
 #define MATCH(s) (!strcmp(argv[ac], (s)))
 
+#define BLOCK_SIZE 256
+
 static const double kMicro = 1.0e-6;
 
 double get_time() {
@@ -91,9 +93,9 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 }	
 
 // REDUCTION
-__global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth,int blocksize)
+__global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
 {
-	__shared__ float seg_sum[2 * blocksize];
+	__shared__ float seg_sum[2 * BLOCK_SIZE];
 	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
 	unsigned int threadId = threadIdx.x;
 	unsigned int start = 2 * blockIdx.x * blockDim.x;
@@ -144,7 +146,6 @@ int main(int argc, char *argv[])
 	const char *outputname = "output.png";	
 	int width, height, pixelWidth, n_pixels;
 	int n_iter = 50;
-	int blocksize = 16;
 	float lambda = 0.5;
 	float mean, variance, std_dev;	//local region statistics
 	float *north_deriv, *south_deriv, *west_deriv, *east_deriv;	// directional derivatives
@@ -178,10 +179,10 @@ int main(int argc, char *argv[])
 			lambda = atof(argv[++ac]);
 		} else if(MATCH("-o")) {
 			outputname = argv[++ac];
-		} else if(MATCH("-b")) {
-			blocksize = atoi(argv[++ac]);
+		//} else if(MATCH("-b")) {
+			//BLOCK_SIZE = atoi(argv[++ac]);
 		} else {
-		printf("Usage: %s [-i < filename>] [-iter <n_iter>] [-l <lambda>] [-o <outputfilename>] [-b <blocksize>]\n",argv[0]);
+		printf("Usage: %s [-i < filename>] [-iter <n_iter>] [-l <lambda>] [-o <outputfilename>]\n",argv[0]);
 		return(-1);
 		}
 	}
@@ -236,7 +237,7 @@ int main(int argc, char *argv[])
 	time_4 = get_time();
 
 	// setup execution configurations, creating 2D threads 
-	dim3 threads(blocksize, blocksize, 1);
+	dim3 threads(BLOCK_SIZE, BLOCK_SIZE, 1);
 	dim3 grid(height/threads.x, width/threads.y);
 
 	// Part V: compute --- n_iter * (3 * height * width + 42 * (height-1) * (width-1) + 6) floating point arithmetic operations in totaL
@@ -245,7 +246,7 @@ int main(int argc, char *argv[])
 		sum2 = 0;
 
 		// REDUCTION AND STATISTICS
-		reduction<<<grid, threads>>>(image_d, sum_d, sum2_d, height, width, pixelWidth,blocksize);
+		reduction<<<grid, threads>>>(image_d, sum_d, sum2_d, height, width, pixelWidth);
 		cudaDeviceSynchronize();
 
 		// Get results back to host
@@ -329,6 +330,6 @@ int main(int argc, char *argv[])
 	printf("Total time: %9.6f s\n", (time_8 - time_0));
 	printf("Average of sum of pixels: %9.6f\n", test);
 	printf("GFLOPS: %f\n", gflops);
-	printf("V1 blocksize: %d\n", blocksize);
+	printf("V1 BLOCK_SIZE: %d\n", BLOCK_SIZE);
 	return 0;
 }
