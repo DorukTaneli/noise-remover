@@ -73,32 +73,32 @@ echo
 ################################################################################
 echo "==========================="
 echo "Running Serial..."
-./noise_remover -i ./images/coffee.pgm -iter 100 -o denoised_coffee.png
+#./noise_remover -i ./images/coffee.pgm -iter 100 -o denoised_coffee.png
 
 echo "==========================="
 echo "Running v1 blocksize 8..."
-./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 8
+#./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 8
 
 echo "==========================="
 echo "Running v1 blocksize 16..."
-./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 16
+#./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 16
 
 echo "==========================="
 echo "Running v1 blocksize 32..."
-./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 32
+#./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 32
 
 echo "==========================="
 echo "Running v2 blocksize 8..."
-./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png -b 8
+#./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png -b 8
 
 echo "==========================="
 echo "Running v2 blocksize 16..."
-./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png -b 16
+#./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png -b 16
 
 echo "==========================="
 echo "Running v2 blocksize 32..."
-./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png -b 32
+#./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png -b 32
 
 echo "==========================="
-echo "Running v3 blocksize 16..."
+echo "Running v3 blocksize 256..."
 ./noise_remover_v3 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v3.png
