@@ -145,8 +145,8 @@ int main(int argc, char *argv[])
 	const char *outputname = "output.png";	
 	int width, height, pixelWidth, n_pixels;
 	int n_iter = 50;
+	int blocksize = 16;
 	float lambda = 0.5;
-	float blocksize = 16;
 	float mean, variance, std_dev;	//local region statistics
 	float *north_deriv, *south_deriv, *west_deriv, *east_deriv;	// directional derivatives
 	float *north_deriv_d, *south_deriv_d, *west_deriv_d, *east_deriv_d; // derivatives in the device
@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 		} else if(MATCH("-o")) {
 			outputname = argv[++ac];
 		} else if(MATCH("-b")) {
-			blocksize = argv[++ac];
+			blocksize = atoi(argv[++ac]);
 		} else {
 		printf("Usage: %s [-i < filename>] [-iter <n_iter>] [-l <lambda>] [-o <outputfilename>] [-b <blocksize>]\n",argv[0]);
 		return(-1);
