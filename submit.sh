@@ -76,9 +76,17 @@ echo "Running Serial..."
 echo "==========================="
 ./noise_remover -i ./images/coffee.pgm -iter 100 -o denoised_coffee.png
 
-echo "Running v1..."
+echo "Running v1 blocksize 16..."
 echo "==========================="
-./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png
+./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 16
+
+echo "Running v1 blocksize 32..."
+echo "==========================="
+./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 32
+
+echo "Running v1 blocksize 64..."
+echo "==========================="
+./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png -b 64
 
 echo "Running v2..."
 echo "==========================="
