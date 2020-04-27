@@ -91,9 +91,9 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 }	
 
 // REDUCTION
-__global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
+__global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth,int blocksize)
 {
-	__shared__ float seg_sum[2 * 16];
+	__shared__ float seg_sum[2 * blocksize];
 	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
 	unsigned int threadId = threadIdx.x;
 	unsigned int start = 2 * blockIdx.x * blockDim.x;
@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
 		sum2 = 0;
 
 		// REDUCTION AND STATISTICS
-		reduction<<<grid, threads>>>(image_d, sum_d, sum2_d, height, width, pixelWidth);
+		reduction<<<grid, threads>>>(image_d, sum_d, sum2_d, height, width, pixelWidth,blocksize);
 		cudaDeviceSynchronize();
 
 		// Get results back to host
