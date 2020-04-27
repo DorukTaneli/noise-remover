@@ -22,6 +22,7 @@
 #define MATCH(s) (!strcmp(argv[ac], (s)))
 
 static const double kMicro = 1.0e-6;
+int blocksize = 16;
 
 double get_time() {
 	struct timeval TV;
@@ -167,7 +168,6 @@ int main(int argc, char *argv[]) {
 	const char *outputname = "output.png";	
 	int width, height, pixelWidth, n_pixels;
 	int n_iter = 50;
-	int blocksize = 16;
 	float lambda = 0.5;
 	float mean, variance, std_dev;	//local region statistics
 	float *north_deriv, *south_deriv, *west_deriv, *east_deriv;	// directional derivatives
