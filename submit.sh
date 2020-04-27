@@ -26,7 +26,7 @@
 #
 # -= Resources =-
 #
-#SBATCH --job-name=mumax-test
+#SBATCH --job-name=job-noise-remover
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=short
@@ -76,3 +76,14 @@ echo "Running Serial..."
 echo "==========================="
 ./noise_remover -i ./images/coffee.pgm -iter 100 -o denoised_coffee.png
 
+echo "Running v1..."
+echo "==========================="
+./noise_remover_v1 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v1.png
+
+echo "Running v2..."
+echo "==========================="
+./noise_remover_v2 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v2.png
+
+echo "Running v3..."
+echo "==========================="
+./noise_remover_v3 -i ./images/coffee.pgm -iter 100 -o denoised_coffee_v3.png
