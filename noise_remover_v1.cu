@@ -24,8 +24,7 @@
 
 static const double kMicro = 1.0e-6;
 
-double get_time() 
-{
+double get_time() {
 	struct timeval TV;
 	struct timezone TZ;
 	const int RC = gettimeofday(&TV, &TZ);
@@ -39,7 +38,7 @@ double get_time()
 
 //COMPUTE 1
 // --- 32 floating point arithmetic operations per element -> 32*(height-1)*(width-1) in total
-__global__ void compute1(int height, int width, long k, unsigned char *image_d, float *north_deriv_d, 
+__global__ void compute_1(int height, int width, long k, unsigned char *image_d, float *north_deriv_d, 
 						float *south_deriv_d, float *west_deriv_d, float *east_deriv_d, float gradient_square,
 						float laplacian, float num, float den, float std_dev, float std_dev2, float *diff_coef_d)
 {
@@ -71,7 +70,7 @@ __global__ void compute1(int height, int width, long k, unsigned char *image_d, 
 
 // COMPUTE 2
 // divergence and image update --- 10 floating point arithmetic operations per element -> 10*(height-1)*(width-1) in total
-__global__ void compute2(int height, int width, long k, unsigned char *image_d, float lambda, float diff_coef_north, 
+__global__ void compute_2(int height, int width, long k, unsigned char *image_d, float lambda, float diff_coef_north, 
 						float diff_coef_south, float diff_coef_west, float diff_coef_east, float divergence, float *diff_coef_d,
 						float *north_deriv_d, float *south_deriv_d, float *west_deriv_d, float *east_deriv_d)
 {
@@ -92,7 +91,7 @@ __global__ void compute2(int height, int width, long k, unsigned char *image_d, 
 }	
 
 // REDUCTION
-__global__ void summation(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
+__global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
 {
 	__shared__ float seg_sum[2 * 16];
 	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
@@ -149,16 +148,18 @@ int main(int argc, char *argv[])
 	float lambda = 0.5;
 	float mean, variance, std_dev;	//local region statistics
 	float *north_deriv, *south_deriv, *west_deriv, *east_deriv;	// directional derivatives
-	float *north_deriv_d, *south_deriv_d, *west_deriv_d, *east_deriv_d; // derivatives in the device
 	float sum, sum2;	// calculation variables
-	float *sum_d;	// variable in the device
-	float *sum2_d;	// variable in the device
 	float gradient_square, laplacian, num, den, std_dev2, divergence;	// calculation variables
 	float *diff_coef;	// diffusion coefficient
-	float *diff_coef_d; //coeffıcent in the device
 	float diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east;	// directional diffusion coefficients
 	long k;	// current pixel index
 	unsigned char *image_d;
+
+	//device variables
+	float *north_deriv_d, *south_deriv_d, *west_deriv_d, *east_deriv_d;
+	float *sum_d, *sum2_d;
+	float *diff_coef_d;
+
 
 	time_1 = get_time();	
 
@@ -203,30 +204,34 @@ int main(int argc, char *argv[])
 
 	// Part IV: allocate variables
 	north_deriv = (float*) malloc(sizeof(float) * n_pixels);	// north derivative
-	south_deriv = (float*) malloc(sizeof(float) * n_pixels);	// south derivative
-	west_deriv = (float*) malloc(sizeof(float) * n_pixels);	// west derivative
-	east_deriv = (float*) malloc(sizeof(float) * n_pixels);	// east derivative
-	diff_coef  = (float*) malloc(sizeof(float) * n_pixels);	// diffusion coefficient
-
-	// Allocations
-	cudaMalloc((void**)&sum_d, sizeof(float));
-	cudaMalloc((void**)&sum2_d, sizeof(float));
 	cudaMalloc((void**)&north_deriv_d, sizeof(float)*n_pixels);
-	cudaMalloc((void**)&south_deriv_d, sizeof(float)*n_pixels);
-	cudaMalloc((void**)&east_deriv_d, sizeof(float)*n_pixels);
-	cudaMalloc((void**)&west_deriv_d, sizeof(float)*n_pixels);
-	cudaMalloc((void**)&image_d, (sizeof(unsigned char)*n_pixels) * pixelWidth);
-	cudaMalloc((void**)&diff_coef_d, sizeof(float)*n_pixels);
-
-	// Memory Copying to the device 
-	cudaMemcpy((void**)sum_d, &sum, sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy((void**)sum2_d, &sum2, sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy((void**)north_deriv_d, north_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
+	
+	south_deriv = (float*) malloc(sizeof(float) * n_pixels);	// south derivative
+	cudaMalloc((void**)&south_deriv_d, sizeof(float)*n_pixels);
 	cudaMemcpy((void**)south_deriv_d, south_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
-	cudaMemcpy((void**)east_deriv_d, east_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
+	
+	west_deriv = (float*) malloc(sizeof(float) * n_pixels);	// west derivative
+	cudaMalloc((void**)&west_deriv_d, sizeof(float)*n_pixels);
 	cudaMemcpy((void**)west_deriv_d, west_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
-	cudaMemcpy((void**)image_d, image, (sizeof(unsigned char)*n_pixels) * pixelWidth, cudaMemcpyHostToDevice);
+	
+	east_deriv = (float*) malloc(sizeof(float) * n_pixels);	// east derivative
+	cudaMalloc((void**)&east_deriv_d, sizeof(float)*n_pixels);
+	cudaMemcpy((void**)east_deriv_d, east_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
+	
+	diff_coef  = (float*) malloc(sizeof(float) * n_pixels);	// diffusion coefficient
+	cudaMalloc((void**)&diff_coef_d, sizeof(float)*n_pixels);
 	cudaMemcpy((void**)diff_coef_d, diff_coef, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
+
+	cudaMalloc((void**)&sum_d, sizeof(float));
+	cudaMemcpy((void**)sum_d, &sum, sizeof(float), cudaMemcpyHostToDevice);
+
+	cudaMalloc((void**)&sum2_d, sizeof(float));
+	cudaMemcpy((void**)sum2_d, &sum2, sizeof(float), cudaMemcpyHostToDevice);
+
+	cudaMalloc((void**)&image_d, (sizeof(unsigned char)*n_pixels) * pixelWidth);
+	cudaMemcpy((void**)image_d, image, (sizeof(unsigned char)*n_pixels) * pixelWidth, cudaMemcpyHostToDevice);
+
 
 	time_4 = get_time();
 
@@ -240,10 +245,10 @@ int main(int argc, char *argv[])
 		sum2 = 0;
 
 		// REDUCTION AND STATISTICS
-		summation<<<grid, threads>>>(image_d, sum_d, sum2_d, height, width, pixelWidth);
+		reduction<<<grid, threads>>>(image_d, sum_d, sum2_d, height, width, pixelWidth);
 		cudaDeviceSynchronize();
 
-		// Memory Copying to the host
+		// Get results back to host
 		cudaMemcpy(&sum,sum_d,sizeof(float), cudaMemcpyDeviceToHost);
 		cudaMemcpy(&sum2,sum2_d,sizeof(float), cudaMemcpyDeviceToHost);
 
@@ -252,13 +257,14 @@ int main(int argc, char *argv[])
 		std_dev = variance / (mean * mean); // --- 2 floating point arithmetic operations
 	
 		// COMPUTE 1
-	    compute1<<<grid,threads>>>(height, width, k, image_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d, gradient_square, laplacian, num, den, std_dev, std_dev2, diff_coef_d);
+	    compute_1<<<grid,threads>>>(height, width, k, image_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d, gradient_square, laplacian, num, den, std_dev, std_dev2, diff_coef_d);
 	    cudaDeviceSynchronize();
 
 		// COMPUTE 2 
-		compute2<<<grid,threads>>>(height, width, k, image_d, lambda, diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east, divergence, diff_coef_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d);
-		
-		// Memory Copying Output Image to the host
+		compute_2<<<grid,threads>>>(height, width, k, image_d, lambda, diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east, divergence, diff_coef_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d);
+		cudaDeviceSynchronize();
+
+		// Get Output Image back to the host
 		cudaMemcpy(image,image_d,sizeof(unsigned char)*n_pixels * pixelWidth, cudaMemcpyDeviceToHost);
 	}
 
@@ -288,21 +294,26 @@ int main(int argc, char *argv[])
 
 	// Part VII: deallocate variables
 	stbi_image_free(image);
-	free(north_deriv);
-	free(south_deriv);
-	free(west_deriv);
-	free(east_deriv);
-	free(diff_coef);
-
-	// Freeing the memory allocations
 	cudaFree(image_d);
+
+	free(north_deriv);
 	cudaFree(north_deriv_d);
+
+	free(south_deriv);
 	cudaFree(south_deriv_d);
+
+	free(west_deriv);
 	cudaFree(west_deriv_d);
+
+	free(east_deriv);
 	cudaFree(east_deriv_d);
+
+	free(diff_coef);
+	cudaFree(diff_coef_d);
+
 	cudaFree(sum_d);
 	cudaFree(sum2_d);
-	cudaFree(diff_coef_d);
+
 	time_8 = get_time();
 
 	// print
