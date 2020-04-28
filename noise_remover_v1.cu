@@ -22,7 +22,7 @@
 
 #define MATCH(s) (!strcmp(argv[ac], (s)))
 
-#define BLOCK_SIZE 256
+#define SQRT_BLOCK_SIZE 4
 
 static const double kMicro = 1.0e-6;
 
@@ -95,7 +95,7 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 // REDUCTION
 __global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
 {
-	__shared__ float seg_sum[2 * BLOCK_SIZE];
+	__shared__ float seg_sum[2 * SQRT_BLOCK_SIZE];
 	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
 	unsigned int threadId = threadIdx.x;
 	unsigned int start = 2 * blockIdx.x * blockDim.x;
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
 		} else if(MATCH("-o")) {
 			outputname = argv[++ac];
 		//} else if(MATCH("-b")) {
-			//BLOCK_SIZE = atoi(argv[++ac]);
+			//SQRT_BLOCK_SIZE = atoi(argv[++ac]);
 		} else {
 		printf("Usage: %s [-i < filename>] [-iter <n_iter>] [-l <lambda>] [-o <outputfilename>]\n",argv[0]);
 		return(-1);
@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
 	time_4 = get_time();
 
 	// setup execution configurations, creating 2D threads 
-	dim3 threads(BLOCK_SIZE, BLOCK_SIZE, 1);
+	dim3 threads(SQRT_BLOCK_SIZE, SQRT_BLOCK_SIZE, 1);
 	dim3 grid(height/threads.x, width/threads.y);
 
 	// Part V: compute --- n_iter * (3 * height * width + 42 * (height-1) * (width-1) + 6) floating point arithmetic operations in totaL
@@ -263,7 +263,6 @@ int main(int argc, char *argv[])
 
 		// COMPUTE 2 
 		compute_2<<<grid,threads>>>(height, width, k, image_d, lambda, diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east, divergence, diff_coef_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d);
-		cudaDeviceSynchronize();
 
 		// Get Output Image back to the host
 		cudaMemcpy(image,image_d,sizeof(unsigned char)*n_pixels * pixelWidth, cudaMemcpyDeviceToHost);
@@ -330,6 +329,6 @@ int main(int argc, char *argv[])
 	printf("Total time: %9.6f s\n", (time_8 - time_0));
 	printf("Average of sum of pixels: %9.6f\n", test);
 	printf("GFLOPS: %f\n", gflops);
-	printf("V1 BLOCK_SIZE: %d\n", BLOCK_SIZE);
+	printf("V1 blocksize: %d\n", SQRT_BLOCK_SIZE*SQRT_BLOCK_SIZE);
 	return 0;
 }
