@@ -135,26 +135,75 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 
 // }
 
-__global__ void reduction(
-    int         *d_in,          // Tile of input
-    int         *d_out)         // Tile aggregate
+template <unsigned int SQRT_BLOCK_SIZE>
+__device__ void warpReduce(volatile int *sdata, unsigned int tid)
 {
-    // Specialize BlockReduce type for our thread block
-    typedef BlockReduce<int, BLOCK_THREADS, ALGORITHM> BlockReduceT;
-    // Shared memory
-    __shared__ typename BlockReduceT::TempStorage temp_storage;
-    // Per-thread tile data
-    int data[ITEMS_PER_THREAD];
-    LoadDirectStriped<BLOCK_THREADS>(threadIdx.x, d_in, data);
-    // Compute sum
-    int aggregate = BlockReduceT(temp_storage).Sum(data);
-    // Store aggregate and elapsed clocks
-    if (threadIdx.x == 0)
-    {
-        *d_out = aggregate;
-    }
+    if (SQRT_BLOCK_SIZE >= 64) sdata[tid] += sdata[tid + 32];
+    if (SQRT_BLOCK_SIZE >= 32) sdata[tid] += sdata[tid + 16];
+    if (SQRT_BLOCK_SIZE >= 16) sdata[tid] += sdata[tid +  8];
+    if (SQRT_BLOCK_SIZE >=  8) sdata[tid] += sdata[tid +  4];
+    if (SQRT_BLOCK_SIZE >=  4) sdata[tid] += sdata[tid +  2];
+    if (SQRT_BLOCK_SIZE >=  2) sdata[tid] += sdata[tid +  1];
 }
 
+template <unsigned int SQRT_BLOCK_SIZE>
+__global__ void reduceCUDA((unsigned char *g_idata, float *g_odata,float *g_odata2, unsigned int n)
+{
+    __shared__ int sdata[SQRT_BLOCK_SIZE];
+
+    unsigned int tid = threadIdx.x;
+    //size_t i = blockIdx.x*(SQRT_BLOCK_SIZE*2) + tid;
+    //size_t gridSize = blockSize*2*gridDim.x;
+    unsigned int i = blockIdx.x*(blockSize) + tid;
+    unsigned int gridSize = blockSize*gridDim.x;
+    sdata[tid] = 0;
+	sdata2[tid] = 0;
+
+    while (i < n) { 
+					sdata[tid] += g_idata[i]; 
+					sdata2[tid] += sdata[tid]*sdata[tid]
+					i += gridSize;
+					 
+	
+	}
+    __syncthreads();
+
+    if (SQRT_BLOCK_SIZE >= 1024) {
+		if (tid < 512) {
+			sdata[tid] += sdata[tid + 512]; 
+			sdata2[tid] = sdata[tid]*sdata[tid]
+		}
+		__syncthreads(); 
+	}
+	if (SQRT_BLOCK_SIZE >= 512) {
+		if (tid < 256) {
+			sdata[tid] += sdata[tid + 256]; 
+			sdata2[tid] = sdata[tid]*sdata[tid]
+		}
+		__syncthreads(); 
+	}
+	if (SQRT_BLOCK_SIZE >= 256) {
+		if (tid < 128) {
+			sdata[tid] += sdata[tid + 128]; 
+			sdata2[tid] = sdata[tid]*sdata[tid]
+		}
+		__syncthreads(); 
+	}
+	if (SQRT_BLOCK_SIZE >= 128) {
+		if (tid < 64) {
+			sdata[tid] += sdata[tid + 64]; 
+			sdata2[tid] = sdata[tid]*sdata[tid]
+		}
+		__syncthreads(); 
+	}
+
+
+    if (tid < 32) warpReduce<SQRT_BLOCK_SIZE>(sdata, tid);
+    if (tid == 0){
+	g_odata[blockIdx.x] = sdata[0];
+	g_odata2[blockId.x] = sdata2[0]
+	}
+}
 
 int main(int argc, char *argv[]) 
 {	
@@ -246,8 +295,8 @@ int main(int argc, char *argv[])
 	cudaMalloc((void**)&sum_d, sizeof(float));
 	cudaMemcpy((void**)sum_d, &sum, sizeof(float), cudaMemcpyHostToDevice);
 
-	// cudaMalloc((void**)&sum2_d, sizeof(float));
-	// cudaMemcpy((void**)sum2_d, &sum2, sizeof(float), cudaMemcpyHostToDevice);
+	 cudaMalloc((void**)&sum2_d, sizeof(float));
+	 cudaMemcpy((void**)sum2_d, &sum2, sizeof(float), cudaMemcpyHostToDevice);
 
 	cudaMalloc((void**)&image_d, (sizeof(unsigned char)*n_pixels) * pixelWidth);
 	cudaMemcpy((void**)image_d, image, (sizeof(unsigned char)*n_pixels) * pixelWidth, cudaMemcpyHostToDevice);
@@ -265,13 +314,15 @@ int main(int argc, char *argv[])
 		sum2 = 0;
 
 		// REDUCTION
-		reduction<<<grid, threads>>>(image_d, sum);
+		reduceCUDA<<<grid,threads>>> image_d, sum_d, sum2_d,height * width * pixelWidth)
+		//reduction<<<grid, threads>>>(image_d, sum);
 		cudaDeviceSynchronize();
 
 		// Get results back to host
+		//cudaMemcpy(&sum,sum_d,sizeof(float), cudaMemcpyDeviceToHost);
 		cudaMemcpy(&sum,sum_d,sizeof(float), cudaMemcpyDeviceToHost);
-
-		sum2 = sum*sum;
+		cudaMemcpy(&sum2,sum2_d,sizeof(float), cudaMemcpyDeviceToHost);
+		//sum2 = sum*sum;
 		//cudaMemcpy(&sum2,sum2_d,sizeof(float), cudaMemcpyDeviceToHost);
 
 		// STATISTICS
