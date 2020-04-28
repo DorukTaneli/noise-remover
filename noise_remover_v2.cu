@@ -50,17 +50,17 @@ __global__ void compute_1(int height, int width, long k, unsigned char *image_de
 		k = i * width + j;	// position of current element
 		unsigned char image_local = image_device[k];
 
-		north_deriv_device[k] = image_device[(i - 1) * width + j] - image_local;	// north derivative --- 1 floating point arithmetic operations
-		south_deriv_device[k] = image_device[(i + 1) * width + j] - image_local;	// south derivative --- 1 floating point arithmetic operations
-		west_deriv_device[k] = image_device[i * width + (j - 1)] - image_local;	// west derivative --- 1 floating point arithmetic operations
-		east_deriv_device[k] = image_device[i * width + (j + 1)] - image_local;	// east derivative --- 1 floating point arithmetic operations
+		float north_deriv_local = image_device[(i - 1) * width + j] - image_local;	// north derivative --- 1 floating point arithmetic operations
+		float south_deriv_local = image_device[(i + 1) * width + j] - image_local;	// south derivative --- 1 floating point arithmetic operations
+		float west_deriv_local = image_device[i * width + (j - 1)] - image_local;	// west derivative --- 1 floating point arithmetic operations
+		float east_deriv_local = image_device[i * width + (j + 1)] - image_local;	// east derivative --- 1 floating point arithmetic operations
 		
 		
-		float east_deriv_local = east_deriv_device[k];
+		//float east_deriv_local = east_deriv_device[k];
 		float diff_coef_local = diff_coef_device[k];
-		float north_deriv_local = north_deriv_device[k];
-		float west_deriv_local = west_deriv_device[k];
-		float south_deriv_local = south_deriv_device[k];
+		//float north_deriv_local = north_deriv_device[k];
+		//float west_deriv_local = west_deriv_device[k];
+		//float south_deriv_local = south_deriv_device[k];
 
 
 
