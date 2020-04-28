@@ -135,7 +135,7 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 
 // }
 
-__device__ void warpReduce(volatile int *sdata, unsigned int tid)
+__device__ void warpReduce(int *sdata, unsigned int tid)
 {
     if (SQRT_BLOCK_SIZE >= 64) sdata[tid] += sdata[tid + 32];
     if (SQRT_BLOCK_SIZE >= 32) sdata[tid] += sdata[tid + 16];
@@ -148,12 +148,13 @@ __device__ void warpReduce(volatile int *sdata, unsigned int tid)
 __global__ void reduceCUDA(unsigned char *g_idata, float *g_odata,float *g_odata2,int n)
 {
     __shared__ int sdata[SQRT_BLOCK_SIZE];
+	__shared__ int sdata2[SQRT_BLOCK_SIZE];
 
     unsigned int tid = threadIdx.x;
     //size_t i = blockIdx.x*(SQRT_BLOCK_SIZE*2) + tid;
     //size_t gridSize = blockSize*2*gridDim.x;
-    unsigned int i = blockIdx.x*(blockSize) + tid;
-    unsigned int gridSize = blockSize*gridDim.x;
+    unsigned int i = blockIdx.x*(SQRT_BLOCK_SIZE) + tid;
+    unsigned int gridSize = SQRT_BLOCK_SIZE*gridDim.x;
     sdata[tid] = 0;
 	sdata2[tid] = 0;
 
@@ -312,7 +313,7 @@ int main(int argc, char *argv[])
 		sum2 = 0;
 
 		// REDUCTION
-		reduceCUDA<<<grid,threads>>>(image_d, sum_d, sum2_d,height * width * pixelWidth)
+		reduceCUDA<<<grid,threads>>>(image_d, sum_d, sum2_d,height * width * pixelWidth);
 		//reduction<<<grid, threads>>>(image_d, sum);
 		cudaDeviceSynchronize();
 
