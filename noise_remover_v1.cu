@@ -98,6 +98,24 @@ __global__ void reduction(unsigned char *image_device, float *sum_device, float 
 	unsigned int init = 2 * blockIdx.x * blockDim.x;
 	__shared__ float shared_sum[2 * SQRT_BLOCK_SIZE]; //do reduction in shared mem
 	__shared__ float shared_sum2[2 * SQRT_BLOCK_SIZE]; //do reduction in shared mem
+			if((init + threadIdx.x) <= len) 
+	{
+		shared_sum[threadIdx.x] = image_device[init + threadIdx.x];
+		shared_sum2[threadIdx.x] = image_device[init + threadIdx.x];
+	} else {
+		shared_sum[threadIdx.x] = 0.0;
+		shared_sum2[threadIdx.x] = 0.0;
+	}
+
+			if((init + blockDim.x + threadIdx.x) <= len)
+	{
+		shared_sum[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x]; 
+		shared_sum2[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x];
+	} else {
+		shared_sum[blockDim.x + threadIdx.x] = 0.0;
+		shared_sum2[blockDim.x + threadIdx.x] =0;
+	}
+
 
 
 	for(unsigned int i = 0; i < blockDim.x; i *= 2) 
@@ -117,22 +135,7 @@ __global__ void reduction(unsigned char *image_device, float *sum_device, float 
   			sum2_device[blockIdx.x] = shared_sum2[threadIdx.x]*shared_sum2[threadIdx.x];
 		}
 	}
-		if((init + blockDim.x + threadIdx.x) <= len)
-	{
-		shared_sum[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x]; 
-		shared_sum2[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x];
-	} else {
-		shared_sum[blockDim.x + threadIdx.x] = 0.0;
-		shared_sum2[blockDim.x + threadIdx.x] =0;
-	}
-		if((init + threadIdx.x) <= len) 
-	{
-		shared_sum[threadIdx.x] = image_device[init + threadIdx.x];
-		shared_sum2[threadIdx.x] = image_device[init + threadIdx.x];
-	} else {
-		shared_sum[threadIdx.x] = 0.0;
-		shared_sum2[threadIdx.x] = 0.0;
-	}
+
 
 
 
