@@ -165,6 +165,7 @@ int main(int argc, char *argv[]) {
 	float *sum_d, *sum2_d;
 	float *diff_coef_d;
 
+	time_1 = get_time();
 
 	// Part II: parse command line arguments
 	if(argc<2) {
@@ -316,7 +317,7 @@ int main(int argc, char *argv[]) {
 
 	cudaFree(sum_d);
 	cudaFree(sum2_d);
-	
+
 	time_8 = get_time();
 
 	// print

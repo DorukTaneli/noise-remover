@@ -161,9 +161,7 @@ int main(int argc, char *argv[])
 	float *sum_d, *sum2_d;
 	float *diff_coef_d;
 
-
 	time_1 = get_time();	
-
 
 	// Part II: parse command line arguments
 	if(argc<2) {

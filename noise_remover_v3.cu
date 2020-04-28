@@ -187,7 +187,6 @@ int main(int argc, char *argv[]) {
 
 	time_1 = get_time();	
 
-
 	// Part II: parse command line arguments
 	if(argc<2) {
 	  printf("Usage: %s [-i < filename>] [-iter <n_iter>] [-l <lambda>] [-o <outputfilename>]\n",argv[0]);
