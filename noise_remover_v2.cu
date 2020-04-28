@@ -113,38 +113,47 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_de
 // REDUCTION
 __global__ void reduction(unsigned char *image_device, float *sum_device, float *sum2_device, int height, int width, int pixelWidth)
 {
-	__shared__ float seg_sum[2 * SQRT_BLOCK_SIZE];
-	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
-	unsigned int threadId = threadIdx.x;
-	unsigned int start = 2 * blockIdx.x * blockDim.x;
+	unsigned int init = 2 * blockIdx.x * blockDim.x;
+	__shared__ float shared_sum[2 * SQRT_BLOCK_SIZE]; //do reduction in shared mem
+	__shared__ float shared_sum2[2 * SQRT_BLOCK_SIZE]; //do reduction in shared mem
+			if((init + threadIdx.x) <= len) 
+	{
+		shared_sum[threadIdx.x] = image_device[init + threadIdx.x];
+		shared_sum2[threadIdx.x] = image_device[init + threadIdx.x];
+	} else {
+		shared_sum[threadIdx.x] = 0.0;
+		shared_sum2[threadIdx.x] = 0.0;
+	}
 
-	int length = height * width * pixelWidth;
-
-	if((start + threadId) <= length) 
-		seg_sum[threadId] = image_device[start + threadId];
-	else 
-		seg_sum[threadId] = 0.0;
-
-	if((start + blockDim.x + threadId) <= length)
-		seg_sum[blockDim.x + threadId] = image_device[start + blockDim.x + threadId]; 
-	else 
-		seg_sum[blockDim.x + threadId] = 0.0;
+			if((init + blockDim.x + threadIdx.x) <= len)
+	{
+		shared_sum[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x]; 
+		shared_sum2[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x];
+	} else {
+		shared_sum[blockDim.x + threadIdx.x] = 0.0;
+		shared_sum2[blockDim.x + threadIdx.x] =0.0;
+	}
 
 
-	for(unsigned int stage = blockDim.x; stage > 0; stage /= 2) 
+
+	for(unsigned int i = blockDim.x; i > 0; i /= 2) 
 	{
 		__syncthreads();
 
-		if(threadId < stage)
-			seg_sum[threadId] += seg_sum[threadId + stage];
+		if(threadIdx.x < i)
+		{
+			shared_sum[threadIdx.x] += shared_sum[threadIdx.x + i];
+			shared_sum2[threadIdx.x] += shared_sum2[threadIdx.x + i]*shared_sum2[threadIdx.x + i];
+		}
 
 		__syncthreads();
 
-		if(threadId == 0 && (globalThreadId * 2) <= length){
-			sum_device[blockIdx.x] = seg_sum[threadId];
-  			sum2_device[blockIdx.x] = seg_sum[threadId]*seg_sum[threadId];
+		if(threadIdx.x == 0 && ((blockDim.x * blockIdx.x + threadIdx.x) * 2) <= len){
+			sum_device[blockIdx.x] = shared_sum[threadIdx.x];
+  			sum2_device[blockIdx.x] = shared_sum2[threadIdx.x]*shared_sum2[threadIdx.x];
 		}
 	}
+
 
 }
 

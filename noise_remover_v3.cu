@@ -46,37 +46,46 @@ __global__ void compute_1(int height, int width, long k, unsigned char *image_de
 {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
+		float east_deriv_local =0.0;
+		float diff_coef_local = 0.0;
+		float north_deriv_local = 0.0;
+		float west_deriv_local = 0.0;
+		float south_deriv_local = 0.0;
 
 	if(i > 0 && i < height-1 && j > 0 && j < width-1) {
 		k = i * width + j;	// position of current element
-		unsigned char image_devicek = image_device[k];
+		unsigned char image_local = image_device[k];
 
-		north_deriv_device[k] = image_device[(i - 1) * width + j] - image_devicek;	// north derivative --- 1 floating point arithmetic operations
-		south_deriv_device[k] = image_device[(i + 1) * width + j] - image_devicek;	// south derivative --- 1 floating point arithmetic operations
-		west_deriv_device[k] = image_device[i * width + (j - 1)] - image_devicek;	// west derivative --- 1 floating point arithmetic operations
-		east_deriv_device[k] = image_device[i * width + (j + 1)] - image_devicek;	// east derivative --- 1 floating point arithmetic operations
+		north_deriv_device[k] = image_device[(i - 1) * width + j] - image_local;	// north derivative --- 1 floating point arithmetic operations
+		south_deriv_device[k] = image_device[(i + 1) * width + j] - image_local;	// south derivative --- 1 floating point arithmetic operations
+		west_deriv_device[k] = image_device[i * width + (j - 1)] - image_local;	// west derivative --- 1 floating point arithmetic operations
+		 east_deriv_device[k] = image_device[i * width + (j + 1)] - image_local;	// east derivative --- 1 floating point arithmetic operations
+		
+		
+		 east_deriv_local = east_deriv_device[k];
+		 diff_coef_local = diff_coef_device[k];
+		 north_deriv_local = north_deriv_device[k];
+		 west_deriv_local = west_deriv_device[k];
+		 south_deriv_local = south_deriv_device[k];
 
-		float north_deriv_devicek = north_deriv_device[k];
-		float south_deriv_devicek = south_deriv_device[k];
-		float west_deriv_devicek = west_deriv_device[k];
-		float east_deriv_devicek = east_deriv_device[k];
-		float diff_coef_devicek = diff_coef_device[k];
 
-		gradient_square = (north_deriv_devicek * north_deriv_devicek + south_deriv_devicek * south_deriv_devicek + west_deriv_devicek * west_deriv_devicek + east_deriv_devicek * east_deriv_devicek) / (image_devicek * image_devicek); // 9 floating point arithmetic operations
-		laplacian = (north_deriv_devicek + south_deriv_devicek + west_deriv_devicek + east_deriv_devicek) / image_devicek; // 4 floating point arithmetic operations
+
+		gradient_square = (north_deriv_local * north_deriv_local + south_deriv_local * south_deriv_local + west_deriv_local * west_deriv_local + east_deriv_local * east_deriv_local) / (image_local * image_local); // 9 floating point arithmetic operations
+		laplacian = (north_deriv_local + south_deriv_local + west_deriv_local + east_deriv_local) / image_local; // 4 floating point arithmetic operations
 		num = (0.5 * gradient_square) - ((1.0 / 16.0) * (laplacian * laplacian)); // 5 floating point arithmetic operations
 		den = 1 + (.25 * laplacian); // 2 floating point arithmetic operations
 		std_dev2 = num / (den * den); // 2 floating point arithmetic operations
 		den = (std_dev2 - std_dev) / (std_dev * (1 + std_dev)); // 4 floating point arithmetic operations
-		diff_coef_devicek = 1.0 / (1.0 + den); // 2 floating point arithmetic operations
-		if (diff_coef_devicek < 0) {
+		diff_coef_local = 1.0 / (1.0 + den); // 2 floating point arithmetic operations
+		if (diff_coef_local < 0) {
 			diff_coef_device[k] = 0;
-		} else if (diff_coef_devicek > 1)	{
+		} else if (diff_coef_local > 1)	{
 			diff_coef_device[k] = 1;
 		}
 	} else {
 		return;
 	}
+
 }
 
 
@@ -116,37 +125,47 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_de
 // REDUCTION
 __global__ void reduction(unsigned char *image_device, float *sum_device, float *sum2_device, int height, int width, int pixelWidth)
 {
-	__shared__ float seg_sum[2 * SQRT_BLOCK_SIZE];
-	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
-	unsigned int threadId = threadIdx.x;
-	unsigned int start = 2 * blockIdx.x * blockDim.x;
+	unsigned int init = 2 * blockIdx.x * blockDim.x;
+	__shared__ float shared_sum[2 * SQRT_BLOCK_SIZE]; //do reduction in shared mem
+	__shared__ float shared_sum2[2 * SQRT_BLOCK_SIZE]; //do reduction in shared mem
+			if((init + threadIdx.x) <= len) 
+	{
+		shared_sum[threadIdx.x] = image_device[init + threadIdx.x];
+		shared_sum2[threadIdx.x] = image_device[init + threadIdx.x];
+	} else {
+		shared_sum[threadIdx.x] = 0.0;
+		shared_sum2[threadIdx.x] = 0.0;
+	}
 
-	int length = height * width * pixelWidth;
+			if((init + blockDim.x + threadIdx.x) <= len)
+	{
+		shared_sum[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x]; 
+		shared_sum2[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x];
+	} else {
+		shared_sum[blockDim.x + threadIdx.x] = 0.0;
+		shared_sum2[blockDim.x + threadIdx.x] =0.0;
+	}
 
-	if((start + threadId) <= length) 
-		seg_sum[threadId] = image_device[start + threadId];
-	else
-		seg_sum[threadId] = 0.0;
 
-	if((start + blockDim.x + threadId) <= length)
-		seg_sum[blockDim.x + threadId] = image_device[start + blockDim.x + threadId]; 
-	else
-		seg_sum[blockDim.x + threadId] = 0.0;
 
-	for(unsigned int stage = blockDim.x; stage > 0; stage /= 2) 
+	for(unsigned int i = blockDim.x; i > 0; i /= 2) 
 	{
 		__syncthreads();
 
-		if(threadId < stage)
-			seg_sum[threadId] += seg_sum[threadId + stage];
+		if(threadIdx.x < i)
+		{
+			shared_sum[threadIdx.x] += shared_sum[threadIdx.x + i];
+			shared_sum2[threadIdx.x] += shared_sum2[threadIdx.x + i]*shared_sum2[threadIdx.x + i];
+		}
 
 		__syncthreads();
 
-		if(threadId == 0 && (globalThreadId * 2) <= length){
-			sum_device[blockIdx.x] = seg_sum[threadId];
-  			sum2_device[blockIdx.x] = seg_sum[threadId]*seg_sum[threadId];
+		if(threadIdx.x == 0 && ((blockDim.x * blockIdx.x + threadIdx.x) * 2) <= len){
+			sum_device[blockIdx.x] = shared_sum[threadIdx.x];
+  			sum2_device[blockIdx.x] = shared_sum2[threadIdx.x]*shared_sum2[threadIdx.x];
 		}
 	}
+
 
 }
 
