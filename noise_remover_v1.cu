@@ -135,7 +135,7 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 
 // }
 
-template <unsigned int SQRT_BLOCK_SIZE>
+template <unsigned int SQRT_BLOCK_SIZE,unsigned int SQRT_BLOCK_SIZE>
 __device__ void warpReduce(volatile int *sdata, unsigned int tid)
 {
     if (SQRT_BLOCK_SIZE >= 64) sdata[tid] += sdata[tid + 32];
@@ -146,8 +146,8 @@ __device__ void warpReduce(volatile int *sdata, unsigned int tid)
     if (SQRT_BLOCK_SIZE >=  2) sdata[tid] += sdata[tid +  1];
 }
 
-template <unsigned int SQRT_BLOCK_SIZE>
-__global__ void reduceCUDA((unsigned char *g_idata, float *g_odata,float *g_odata2, unsigned int n)
+template <unsigned int SQRT_BLOCK_SIZE,unsigned int SQRT_BLOCK_SIZE>
+__global__ void reduceCUDA(unsigned char *g_idata, float *g_odata,float *g_odata2,int n)
 {
     __shared__ int sdata[SQRT_BLOCK_SIZE];
 
