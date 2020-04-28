@@ -89,10 +89,10 @@ __global__ void compute_1(int height, int width, long k, unsigned char *image_d,
 		}
 		__syncthreads();
 		north_deriv_d[k] = north_s[threadIdx.x][threadIdx.y];
-			south_deriv_d[k] = south_s[threadIdx.x][threadIdx.y];
-			west_deriv_d[k] = west_s[threadIdx.x][threadIdx.y];
+		south_deriv_d[k] = south_s[threadIdx.x][threadIdx.y];
+		west_deriv_d[k] = west_s[threadIdx.x][threadIdx.y];
 		east_deriv_d[k] = east_s[threadIdx.x][threadIdx.y];
-			diff_coef_d[k] = diff_coef_s[threadIdx.x][threadIdx.y];
+		diff_coef_d[k] = diff_coef_s[threadIdx.x][threadIdx.y];
 
 	} else {
 		return;
@@ -106,17 +106,28 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 						float diff_coef_south, float diff_coef_west, float diff_coef_east, float divergence, float *diff_coef_d,
 						float *north_deriv_d, float *south_deriv_d, float *west_deriv_d, float *east_deriv_d)
 {
+
+	__shared__ unsigned char imageShared[SQRT_BLOCK_SIZE][SQRT_BLOCK_SIZE];
+
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if(i > 0 && i < height-1 && j > 0 && j < width-1) {
 		k = i * width + j;	// get position of current element
+
+		imageShared[threadIdx.x][threadIdx.y] = image_d[k];
+		//__syncthreads();
+
 		diff_coef_north = diff_coef_d[k];	// north diffusion coefficient
 		diff_coef_south = diff_coef_d[(i + 1) * width + j];	// south diffusion coefficient
 		diff_coef_west = diff_coef_d[k];	// west diffusion coefficient
 		diff_coef_east = diff_coef_d[i * width + (j + 1)];	// east diffusion coefficient				
 		divergence = diff_coef_north * north_deriv_d[k] + diff_coef_south * south_deriv_d[k] + diff_coef_west * west_deriv_d[k] + diff_coef_east * east_deriv_d[k]; // --- 7 floating point arithmetic operations
-		image_d[k] = image_d[k] + 0.25 * lambda * divergence; // --- 3 floating point arithmetic operations
+		image_d[k] = imageShared[threadIdx.x][threadIdx.y] + 0.25 * lambda * divergence; // --- 3 floating point arithmetic operations
+	
+		// __syncthreads();
+		// image_d[k] = imageShared[threadIdx.x][threadIdx.y]:
+
 	} else {
 		return;
 	}
