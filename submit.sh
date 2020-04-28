@@ -73,7 +73,7 @@ echo
 ################################################################################
 echo "==========================="
 echo "Running Serial..."
-./noise_remover -i ./images/coffee.pgm -iter 100 -o denoised_coffee.png
+#./noise_remover -i ./images/coffee.pgm -iter 100 -o denoised_coffee.png
 
 echo "==========================="
 echo "Running parallel versions with blocksize 16"
