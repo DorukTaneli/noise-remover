@@ -113,7 +113,7 @@ __global__ void reduction(unsigned char *image_device, float *sum_device, float 
 		shared_sum2[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x];
 	} else {
 		shared_sum[blockDim.x + threadIdx.x] = 0.0;
-		shared_sum2[blockDim.x + threadIdx.x] =0;
+		shared_sum2[blockDim.x + threadIdx.x] =0.0;
 	}
 
 
@@ -122,7 +122,7 @@ __global__ void reduction(unsigned char *image_device, float *sum_device, float 
 	{
 		__syncthreads();
 
-		if(threadIdx.x < i)
+		if(threadIdx.x > i)
 		{
 			shared_sum[threadIdx.x] += shared_sum[threadIdx.x + i];
 			shared_sum2[threadIdx.x] += shared_sum2[threadIdx.x + i]*shared_sum2[threadIdx.x + i];
