@@ -92,83 +92,47 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 	}
 }	
 
-// REDUCTION
-// __global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
-// {
-// 	__shared__ float seg_sum[2 * SQRT_BLOCK_SIZE];
-// 	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
-// 	unsigned int threadId = threadIdx.x;
-// 	unsigned int start = 2 * blockIdx.x * blockDim.x;
+//REDUCTION
+__global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int length)
+{
+	__shared__ float seg_sum[2 * SQRT_BLOCK_SIZE];
+	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
+	unsigned int threadId = threadIdx.x;
+	unsigned int start = 2 * blockIdx.x * blockDim.x;
 
-// 	int length = height * width * pixelWidth;
+	if((start + threadId) <= length) 
+	{
+		seg_sum[threadId] = image_d[start + threadId];
+	} else {
+		seg_sum[threadId] = 0.0;
+	}
 
-// 	if((start + threadId) <= length) 
-// 	{
-// 		seg_sum[threadId] = image_d[start + threadId];
-// 	} else {
-// 		seg_sum[threadId] = 0.0;
-// 	}
+	if((start + blockDim.x + threadId) <= length)
+	{
+		seg_sum[blockDim.x + threadId] = image_d[start + blockDim.x + threadId]; 
+	} else {
+		seg_sum[blockDim.x + threadId] = 0.0;
+	}
 
-// 	if((start + blockDim.x + threadId) <= length)
-// 	{
-// 		seg_sum[blockDim.x + threadId] = image_d[start + blockDim.x + threadId]; 
-// 	} else {
-// 		seg_sum[blockDim.x + threadId] = 0.0;
-// 	}
+	for(unsigned int stage = blockDim.x; stage > 0; stage /= 2) 
+	{
+		__syncthreads();
 
-// 	for(unsigned int stage = blockDim.x; stage > 0; stage /= 2) 
-// 	{
-// 		__syncthreads();
+		if(threadId < stage)
+		{
+			seg_sum[threadId] += seg_sum[threadId + stage];
+		}
 
-// 		if(threadId < stage)
-// 		{
-// 			seg_sum[threadId] += seg_sum[threadId + stage];
-// 		}
+		__syncthreads();
 
-// 		__syncthreads();
-
-// 		if(threadId == 0 && (globalThreadId * 2) <= length){
-// 			sum_d[blockIdx.x] = seg_sum[threadId];
-//   			sum2_d[blockIdx.x] = seg_sum[threadId]*seg_sum[threadId];
-// 		}
-// 	}
-
-// }
-
-__global__ void reduction(unsigned char *g_idata, float *sum_d, float *sum2_d, unsigned int n) {
-  // Handle to thread block group
-  //cg::thread_block cta = cg::this_thread_block();
-  __shared__ unsigned char *sdata[n*sizeof(unsigned char)];
-  __shared__ unsigned char *sdata2[n*sizeof(unsigned char)];
-
-  // load shared mem
-  unsigned int tid = threadIdx.x;
-  unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-
-  sdata[tid] = (i < n) ? g_idata[i] : 0;
-  sdata2[tid] = (i < n) ? g_idata[i] : 0;
-
-  //cg::sync(cta);
-  __syncthreads();
-
-  // do reduction in shared mem
-  for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
-    if (tid < s) {
-	  sdata[tid] += sdata[tid + s];
-	  sdata2[tid] += sdata2[tid + s]*sdata2[tid + s];
-    }
-
-	//cg::sync(cta);
-	__syncthreads();
-  }
-
-  // write result for this block to global mem
-  if (tid == 0) {
-	  sum_d[blockIdx.x] = sdata[0];
-	  sum2_d[blockIdx.x] = sdata2[0];
-  }
+		if(threadId == 0 && (globalThreadId * 2) <= length){
+			sum_d[blockIdx.x] = seg_sum[threadId];
+  			sum2_d[blockIdx.x] = seg_sum[threadId]*seg_sum[threadId];
+		}
+	}
 
 }
+
 
 int main(int argc, char *argv[]) 
 {	
