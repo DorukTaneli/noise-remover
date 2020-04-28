@@ -58,7 +58,7 @@ __global__ void compute_1(int height, int width, long k, unsigned char *image_de
 		
 		
 		//float east_deriv_local = east_deriv_device[k];
-		//float diff_coef_local = diff_coef_device[k];
+		float diff_coef_local = diff_coef_device[k];
 		//float north_deriv_local = north_deriv_device[k];
 		//float west_deriv_local = west_deriv_device[k];
 		//float south_deriv_local = south_deriv_device[k];
