@@ -137,7 +137,7 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 
 __global__ void reduction(unsigned char *g_idata, float *sum_d, float *sum2_d, unsigned int n) {
   // Handle to thread block group
-  cg::thread_block cta = cg::this_thread_block();
+  //cg::thread_block cta = cg::this_thread_block();
   unsigned char *sdata = SharedMemory<unsigned char>();
   unsigned char *sdata2 = SharedMemory<unsigned char>();
 
@@ -148,7 +148,8 @@ __global__ void reduction(unsigned char *g_idata, float *sum_d, float *sum2_d, u
   sdata[tid] = (i < n) ? g_idata[i] : 0;
   sdata2[tid] = (i < n) ? g_idata[i] : 0;
 
-  cg::sync(cta);
+  //cg::sync(cta);
+  __syncthreads();
 
   // do reduction in shared mem
   for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
@@ -157,7 +158,8 @@ __global__ void reduction(unsigned char *g_idata, float *sum_d, float *sum2_d, u
 	  sdata2[tid] += sdata2[tid + s]*sdata2[tid + s];
     }
 
-    cg::sync(cta);
+	//cg::sync(cta);
+	__syncthreads();
   }
 
   // write result for this block to global mem
