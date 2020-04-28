@@ -40,7 +40,7 @@ double get_time() {
 
 //COMPUTE 1
 // --- 32 floating point arithmetic operations per element -> 32*(height-1)*(width-1) in total
-__global__ void compute1(int height, int width, long k, unsigned char *image_d, float *north_deriv_d, 
+__global__ void compute_1(int height, int width, long k, unsigned char *image_d, float *north_deriv_d, 
 						float *south_deriv_d, float *west_deriv_d, float *east_deriv_d, float gradient_square,
 						float laplacian, float num, float den, float std_dev, float std_dev2, float *diff_coef_d)
 {
@@ -102,7 +102,7 @@ __global__ void compute1(int height, int width, long k, unsigned char *image_d, 
 
 // COMPUTE 2
 // divergence and image update --- 10 floating point arithmetic operations per element -> 10*(height-1)*(width-1) in total
-__global__ void compute2(int height, int width, long k, unsigned char *image_d, float lambda, float diff_coef_north, 
+__global__ void compute_2(int height, int width, long k, unsigned char *image_d, float lambda, float diff_coef_north, 
 						float diff_coef_south, float diff_coef_west, float diff_coef_east, float divergence, float *diff_coef_d,
 						float *north_deriv_d, float *south_deriv_d, float *west_deriv_d, float *east_deriv_d)
 {
@@ -123,7 +123,7 @@ __global__ void compute2(int height, int width, long k, unsigned char *image_d, 
 }	
 
 // REDUCTION
-__global__ void summation(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
+__global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
 {
 	__shared__ float seg_sum[2 * SQRT_BLOCK_SIZE];
 	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
@@ -266,26 +266,26 @@ int main(int argc, char *argv[]) {
 		sum = 0;
 		sum2 = 0;
 
-		// REDUCTION AND STATISTICS
-
-		summation<<<grid, threads>>>(image_d, sum_d, sum2_d, height, width, pixelWidth);
+		// REDUCTION
+		reduction<<<grid, threads>>>(image_d, sum_d, sum2_d, height, width, pixelWidth);
 		cudaDeviceSynchronize();
 
 		// Get results back to host
 		cudaMemcpy(&sum,sum_d,sizeof(float), cudaMemcpyDeviceToHost);
 		cudaMemcpy(&sum2,sum2_d,sizeof(float), cudaMemcpyDeviceToHost);
 
+		// STATISTICS
 		mean = sum / n_pixels; // --- 1 floating point arithmetic operations
 		variance = (sum2 / n_pixels) - mean * mean; // --- 3 floating point arithmetic operations
 		std_dev = variance / (mean * mean); // --- 2 floating point arithmetic operations
 
 		// COMPUTE 1
-		compute1<<<grid,threads>>>(height, width, k, image_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d, gradient_square, laplacian, num, den, std_dev, std_dev2, diff_coef_d);
+		compute_1<<<grid,threads>>>(height, width, k, image_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d, gradient_square, laplacian, num, den, std_dev, std_dev2, diff_coef_d);
 		cudaDeviceSynchronize();
 
 		// COMPUTE 2 
 
-		compute2<<<grid,threads>>>(height, width, k, image_d, lambda, diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east, divergence, diff_coef_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d);
+		compute_2<<<grid,threads>>>(height, width, k, image_d, lambda, diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east, divergence, diff_coef_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d);
 
 		// Get Output Image back to the host
 		cudaMemcpy(image,image_d,sizeof(unsigned char)*n_pixels * pixelWidth, cudaMemcpyDeviceToHost);

@@ -243,7 +243,7 @@ int main(int argc, char *argv[])
 		sum = 0;
 		sum2 = 0;
 
-		// REDUCTION AND STATISTICS
+		// REDUCTION
 		reduction<<<grid, threads>>>(image_d, sum_d, sum2_d, height, width, pixelWidth);
 		cudaDeviceSynchronize();
 
@@ -251,6 +251,7 @@ int main(int argc, char *argv[])
 		cudaMemcpy(&sum,sum_d,sizeof(float), cudaMemcpyDeviceToHost);
 		cudaMemcpy(&sum2,sum2_d,sizeof(float), cudaMemcpyDeviceToHost);
 
+		// STATISTICS
 		mean = sum / n_pixels; // --- 1 floating point arithmetic operations
 		variance = (sum2 / n_pixels) - mean * mean; // --- 3 floating point arithmetic operations
 		std_dev = variance / (mean * mean); // --- 2 floating point arithmetic operations
