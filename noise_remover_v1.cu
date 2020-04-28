@@ -159,7 +159,7 @@ __global__ void reduceCUDA(unsigned char *g_idata, float *g_odata,float *g_odata
 
     while (i < n) { 
 					sdata[tid] += g_idata[i]; 
-					sdata2[tid] += sdata[tid]*sdata[tid]
+					sdata2[tid] += sdata[tid]*sdata[tid];
 					i += gridSize;
 					 
 	
@@ -169,28 +169,28 @@ __global__ void reduceCUDA(unsigned char *g_idata, float *g_odata,float *g_odata
     if (SQRT_BLOCK_SIZE >= 1024) {
 		if (tid < 512) {
 			sdata[tid] += sdata[tid + 512]; 
-			sdata2[tid] = sdata[tid]*sdata[tid]
+			sdata2[tid] = sdata[tid]*sdata[tid];
 		}
 		__syncthreads(); 
 	}
 	if (SQRT_BLOCK_SIZE >= 512) {
 		if (tid < 256) {
 			sdata[tid] += sdata[tid + 256]; 
-			sdata2[tid] = sdata[tid]*sdata[tid]
+			sdata2[tid] = sdata[tid]*sdata[tid];
 		}
 		__syncthreads(); 
 	}
 	if (SQRT_BLOCK_SIZE >= 256) {
 		if (tid < 128) {
 			sdata[tid] += sdata[tid + 128]; 
-			sdata2[tid] = sdata[tid]*sdata[tid]
+			sdata2[tid] = sdata[tid]*sdata[tid];
 		}
 		__syncthreads(); 
 	}
 	if (SQRT_BLOCK_SIZE >= 128) {
 		if (tid < 64) {
 			sdata[tid] += sdata[tid + 64]; 
-			sdata2[tid] = sdata[tid]*sdata[tid]
+			sdata2[tid] = sdata[tid]*sdata[tid];
 		}
 		__syncthreads(); 
 	}
@@ -199,7 +199,7 @@ __global__ void reduceCUDA(unsigned char *g_idata, float *g_odata,float *g_odata
     if (tid < 32) warpReduce<SQRT_BLOCK_SIZE>(sdata, tid);
     if (tid == 0){
 	g_odata[blockIdx.x] = sdata[0];
-	g_odata2[blockId.x] = sdata2[0]
+	g_odata2[blockIdx.x] = sdata2[0];
 	}
 }
 
