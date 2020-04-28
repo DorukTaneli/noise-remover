@@ -135,7 +135,7 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 
 // }
 
-__device__ void warpReduce(int *sdata, unsigned int tid)
+__device__ void warpReduce(int* sdata, unsigned int tid)
 {
     if (SQRT_BLOCK_SIZE >= 64) sdata[tid] += sdata[tid + 32];
     if (SQRT_BLOCK_SIZE >= 32) sdata[tid] += sdata[tid + 16];
