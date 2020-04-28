@@ -21,7 +21,7 @@
 
 #define MATCH(s) (!strcmp(argv[ac], (s)))
 
-#define SQRT_BLOCK_SIZE 32
+#define SQRT_BLOCK_SIZE 4
 
 static const double kMicro = 1.0e-6;
 
