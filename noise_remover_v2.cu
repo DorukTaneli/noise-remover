@@ -43,35 +43,43 @@ __global__ void compute_1(int height, int width, long k, unsigned char *image_de
 						float *south_deriv_device, float *west_deriv_device, float *east_deriv_device, float gradient_square,
 						float laplacian, float num, float den, float std_dev, float std_dev2, float *diff_coef_device)
 {
+		float east_deriv_local = 0;
+		float diff_coef_local = 0;
+		float north_deriv_local = 0;
+		float west_deriv_local = 0;
+		float south_deriv_local =0;
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if(i > 0 && i < height-1 && j > 0 && j < width-1) {
 		k = i * width + j;	// position of current element
-		unsigned char image_devicek = image_device[k];
+		unsigned char image_local = image_device[k];
 
-		north_deriv_device[k] = image_device[(i - 1) * width + j] - image_devicek;	// north derivative --- 1 floating point arithmetic operations
-		south_deriv_device[k] = image_device[(i + 1) * width + j] - image_devicek;	// south derivative --- 1 floating point arithmetic operations
-		west_deriv_device[k] = image_device[i * width + (j - 1)] - image_devicek;	// west derivative --- 1 floating point arithmetic operations
-		east_deriv_device[k] = image_device[i * width + (j + 1)] - image_devicek;	// east derivative --- 1 floating point arithmetic operations
+		north_deriv_local = image_device[(i - 1) * width + j] - image_local;	// north derivative --- 1 floating point arithmetic operations
+		south_deriv_local = image_device[(i + 1) * width + j] - image_local;	// south derivative --- 1 floating point arithmetic operations
+		west_deriv_local = image_device[i * width + (j - 1)] - image_local;	// west derivative --- 1 floating point arithmetic operations
+		 east_deriv_local = image_device[i * width + (j + 1)] - image_local;	// east derivative --- 1 floating point arithmetic operations
 		
-		float north_deriv_devicek = north_deriv_device[k];
-		float south_deriv_devicek = south_deriv_device[k];
-		float west_deriv_devicek = west_deriv_device[k];
-		float east_deriv_devicek = east_deriv_device[k];
-		float diff_coef_devicek = diff_coef_device[k];
+		
+		//float east_deriv_local = east_deriv_device[k];
+		//float diff_coef_local = diff_coef_device[k];
+		//float north_deriv_local = north_deriv_device[k];
+		//float west_deriv_local = west_deriv_device[k];
+		//float south_deriv_local = south_deriv_device[k];
 
-		gradient_square = (north_deriv_devicek * north_deriv_devicek + south_deriv_devicek * south_deriv_devicek + west_deriv_devicek * west_deriv_devicek + east_deriv_devicek * east_deriv_devicek) / (image_devicek * image_devicek); // 9 floating point arithmetic operations
-		laplacian = (north_deriv_devicek + south_deriv_devicek + west_deriv_devicek + east_deriv_devicek) / image_devicek; // 4 floating point arithmetic operations
+
+
+		gradient_square = (north_deriv_local * north_deriv_local + south_deriv_local * south_deriv_local + west_deriv_local * west_deriv_local + east_deriv_local * east_deriv_local) / (image_local * image_local); // 9 floating point arithmetic operations
+		laplacian = (north_deriv_local + south_deriv_local + west_deriv_local + east_deriv_local) / image_local; // 4 floating point arithmetic operations
 		num = (0.5 * gradient_square) - ((1.0 / 16.0) * (laplacian * laplacian)); // 5 floating point arithmetic operations
 		den = 1 + (.25 * laplacian); // 2 floating point arithmetic operations
 		std_dev2 = num / (den * den); // 2 floating point arithmetic operations
 		den = (std_dev2 - std_dev) / (std_dev * (1 + std_dev)); // 4 floating point arithmetic operations
-		diff_coef_devicek = 1.0 / (1.0 + den); // 2 floating point arithmetic operations
-		if (diff_coef_devicek < 0) {
-			diff_coef_device[k] = 0;
-		} else if (diff_coef_devicek > 1)	{
-			diff_coef_device[k] = 1;
+		diff_coef_local = 1.0 / (1.0 + den); // 2 floating point arithmetic operations
+		if (diff_coef_local < 0) {
+			diff_coef_local = 0;
+		} else if (diff_coef_local > 1)	{
+			diff_coef_local = 1;
 		}
 	} else {
 		return;
