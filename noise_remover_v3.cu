@@ -41,6 +41,45 @@ double get_time() {
 //COMPUTE 1
 // --- 32 floating point arithmetic operations per element -> 32*(height-1)*(width-1) in total
 __global__ void compute_1(int height, int width, long k, unsigned char *image_d, float *north_deriv_d, 
+	float *south_deriv_d, float *west_deriv_d, float *east_deriv_d, float gradient_square,
+	float laplacian, float num, float den, float std_dev, float std_dev2, float *diff_coef_d)
+{
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if(i > 0 && i < height-1 && j > 0 && j < width-1) {
+		k = i * width + j;	// position of current element
+		unsigned char image_dk = image_d[k];
+
+		north_deriv_d[k] = image_d[(i - 1) * width + j] - image_dk;	// north derivative --- 1 floating point arithmetic operations
+		south_deriv_d[k] = image_d[(i + 1) * width + j] - image_dk;	// south derivative --- 1 floating point arithmetic operations
+		west_deriv_d[k] = image_d[i * width + (j - 1)] - image_dk;	// west derivative --- 1 floating point arithmetic operations
+		east_deriv_d[k] = image_d[i * width + (j + 1)] - image_dk;	// east derivative --- 1 floating point arithmetic operations
+
+		float north_deriv_dk = north_deriv_d[k];
+		float south_deriv_dk = south_deriv_d[k];
+		float west_deriv_dk = west_deriv_d[k];
+		float east_deriv_dk = east_deriv_d[k];
+		float diff_coef_dk = diff_coef_d[k];
+
+		gradient_square = (north_deriv_dk * north_deriv_dk + south_deriv_dk * south_deriv_dk + west_deriv_dk * west_deriv_dk + east_deriv_dk * east_deriv_dk) / (image_dk * image_dk); // 9 floating point arithmetic operations
+		laplacian = (north_deriv_dk + south_deriv_dk + west_deriv_dk + east_deriv_dk) / image_dk; // 4 floating point arithmetic operations
+		num = (0.5 * gradient_square) - ((1.0 / 16.0) * (laplacian * laplacian)); // 5 floating point arithmetic operations
+		den = 1 + (.25 * laplacian); // 2 floating point arithmetic operations
+		std_dev2 = num / (den * den); // 2 floating point arithmetic operations
+		den = (std_dev2 - std_dev) / (std_dev * (1 + std_dev)); // 4 floating point arithmetic operations
+		diff_coef_dk = 1.0 / (1.0 + den); // 2 floating point arithmetic operations
+		if (diff_coef_dk < 0) {
+			diff_coef_d[k] = 0;
+		} else if (diff_coef_dk > 1)	{
+			diff_coef_d[k] = 1;
+		}
+	} else {
+		return;
+	}
+}
+
+__global__ void compute_1_shared(int height, int width, long k, unsigned char *image_d, float *north_deriv_d, 
 						float *south_deriv_d, float *west_deriv_d, float *east_deriv_d, float gradient_square,
 						float laplacian, float num, float den, float std_dev, float std_dev2, float *diff_coef_d)
 {
