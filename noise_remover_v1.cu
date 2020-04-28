@@ -93,47 +93,68 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 }	
 
 // REDUCTION
-__global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
+// __global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int height, int width, int pixelWidth)
+// {
+// 	__shared__ float seg_sum[2 * SQRT_BLOCK_SIZE];
+// 	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
+// 	unsigned int threadId = threadIdx.x;
+// 	unsigned int start = 2 * blockIdx.x * blockDim.x;
+
+// 	int length = height * width * pixelWidth;
+
+// 	if((start + threadId) <= length) 
+// 	{
+// 		seg_sum[threadId] = image_d[start + threadId];
+// 	} else {
+// 		seg_sum[threadId] = 0.0;
+// 	}
+
+// 	if((start + blockDim.x + threadId) <= length)
+// 	{
+// 		seg_sum[blockDim.x + threadId] = image_d[start + blockDim.x + threadId]; 
+// 	} else {
+// 		seg_sum[blockDim.x + threadId] = 0.0;
+// 	}
+
+// 	for(unsigned int stage = blockDim.x; stage > 0; stage /= 2) 
+// 	{
+// 		__syncthreads();
+
+// 		if(threadId < stage)
+// 		{
+// 			seg_sum[threadId] += seg_sum[threadId + stage];
+// 		}
+
+// 		__syncthreads();
+
+// 		if(threadId == 0 && (globalThreadId * 2) <= length){
+// 			sum_d[blockIdx.x] = seg_sum[threadId];
+//   			sum2_d[blockIdx.x] = seg_sum[threadId]*seg_sum[threadId];
+// 		}
+// 	}
+
+// }
+
+__global__ void reduction(
+    int         *d_in,          // Tile of input
+    int         *d_out)         // Tile aggregate
 {
-	__shared__ float seg_sum[2 * SQRT_BLOCK_SIZE];
-	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
-	unsigned int threadId = threadIdx.x;
-	unsigned int start = 2 * blockIdx.x * blockDim.x;
-
-	int length = height * width * pixelWidth;
-
-	if((start + threadId) <= length) 
-	{
-		seg_sum[threadId] = image_d[start + threadId];
-	} else {
-		seg_sum[threadId] = 0.0;
-	}
-
-	if((start + blockDim.x + threadId) <= length)
-	{
-		seg_sum[blockDim.x + threadId] = image_d[start + blockDim.x + threadId]; 
-	} else {
-		seg_sum[blockDim.x + threadId] = 0.0;
-	}
-
-	for(unsigned int stage = blockDim.x; stage > 0; stage /= 2) 
-	{
-		__syncthreads();
-
-		if(threadId < stage)
-		{
-			seg_sum[threadId] += seg_sum[threadId + stage];
-		}
-
-		__syncthreads();
-
-		if(threadId == 0 && (globalThreadId * 2) <= length){
-			sum_d[blockIdx.x] = seg_sum[threadId];
-  			sum2_d[blockIdx.x] = seg_sum[threadId]*seg_sum[threadId];
-		}
-	}
-
+    // Specialize BlockReduce type for our thread block
+    typedef BlockReduce<int, BLOCK_THREADS, ALGORITHM> BlockReduceT;
+    // Shared memory
+    __shared__ typename BlockReduceT::TempStorage temp_storage;
+    // Per-thread tile data
+    int data[ITEMS_PER_THREAD];
+    LoadDirectStriped<BLOCK_THREADS>(threadIdx.x, d_in, data);
+    // Compute sum
+    int aggregate = BlockReduceT(temp_storage).Sum(data);
+    // Store aggregate and elapsed clocks
+    if (threadIdx.x == 0)
+    {
+        *d_out = aggregate;
+    }
 }
+
 
 int main(int argc, char *argv[]) 
 {	
@@ -225,8 +246,8 @@ int main(int argc, char *argv[])
 	cudaMalloc((void**)&sum_d, sizeof(float));
 	cudaMemcpy((void**)sum_d, &sum, sizeof(float), cudaMemcpyHostToDevice);
 
-	cudaMalloc((void**)&sum2_d, sizeof(float));
-	cudaMemcpy((void**)sum2_d, &sum2, sizeof(float), cudaMemcpyHostToDevice);
+	// cudaMalloc((void**)&sum2_d, sizeof(float));
+	// cudaMemcpy((void**)sum2_d, &sum2, sizeof(float), cudaMemcpyHostToDevice);
 
 	cudaMalloc((void**)&image_d, (sizeof(unsigned char)*n_pixels) * pixelWidth);
 	cudaMemcpy((void**)image_d, image, (sizeof(unsigned char)*n_pixels) * pixelWidth, cudaMemcpyHostToDevice);
@@ -244,12 +265,14 @@ int main(int argc, char *argv[])
 		sum2 = 0;
 
 		// REDUCTION
-		reduction<<<grid, threads>>>(image_d, sum_d, sum2_d, height, width, pixelWidth);
+		reduction<<<grid, threads>>>(image_d, sum);
 		cudaDeviceSynchronize();
 
 		// Get results back to host
 		cudaMemcpy(&sum,sum_d,sizeof(float), cudaMemcpyDeviceToHost);
-		cudaMemcpy(&sum2,sum2_d,sizeof(float), cudaMemcpyDeviceToHost);
+
+		sum2 = sum*sum;
+		//cudaMemcpy(&sum2,sum2_d,sizeof(float), cudaMemcpyDeviceToHost);
 
 		// STATISTICS
 		mean = sum / n_pixels; // --- 1 floating point arithmetic operations
