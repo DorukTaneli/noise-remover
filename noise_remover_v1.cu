@@ -135,73 +135,37 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 
 // }
 
-__device__ void warpReduce(int* sdata, unsigned int tid)
-{
-    if (SQRT_BLOCK_SIZE >= 64) sdata[tid] += sdata[tid + 32];
-    if (SQRT_BLOCK_SIZE >= 32) sdata[tid] += sdata[tid + 16];
-    if (SQRT_BLOCK_SIZE >= 16) sdata[tid] += sdata[tid +  8];
-    if (SQRT_BLOCK_SIZE >=  8) sdata[tid] += sdata[tid +  4];
-    if (SQRT_BLOCK_SIZE >=  4) sdata[tid] += sdata[tid +  2];
-    if (SQRT_BLOCK_SIZE >=  2) sdata[tid] += sdata[tid +  1];
-}
+__global__ void reduction(unsigned char *g_idata, float *sum_d, float *sum2_d, unsigned int n) {
+  // Handle to thread block group
+  cg::thread_block cta = cg::this_thread_block();
+  unsigned char *sdata = SharedMemory<unsigned char>();
+  unsigned char *sdata2 = SharedMemory<unsigned char>();
 
-__global__ void reduceCUDA(unsigned char *g_idata, float *g_odata,float *g_odata2,int n)
-{
-    __shared__ int sdata[SQRT_BLOCK_SIZE];
-	__shared__ int sdata2[SQRT_BLOCK_SIZE];
+  // load shared mem
+  unsigned int tid = threadIdx.x;
+  unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    unsigned int tid = threadIdx.x;
-    //size_t i = blockIdx.x*(SQRT_BLOCK_SIZE*2) + tid;
-    //size_t gridSize = blockSize*2*gridDim.x;
-    unsigned int i = blockIdx.x*(SQRT_BLOCK_SIZE) + tid;
-    unsigned int gridSize = SQRT_BLOCK_SIZE*gridDim.x;
-    sdata[tid] = 0;
-	sdata2[tid] = 0;
+  sdata[tid] = (i < n) ? g_idata[i] : 0;
+  sdata2[tid] = (i < n) ? g_idata[i] : 0;
 
-    while (i < n) { 
-					sdata[tid] += g_idata[i]; 
-					sdata2[tid] += sdata[tid]*sdata[tid];
-					i += gridSize;
-					 
-	
-	}
-    __syncthreads();
+  cg::sync(cta);
 
-    if (SQRT_BLOCK_SIZE >= 1024) {
-		if (tid < 512) {
-			sdata[tid] += sdata[tid + 512]; 
-			sdata2[tid] = sdata[tid]*sdata[tid];
-		}
-		__syncthreads(); 
-	}
-	if (SQRT_BLOCK_SIZE >= 512) {
-		if (tid < 256) {
-			sdata[tid] += sdata[tid + 256]; 
-			sdata2[tid] = sdata[tid]*sdata[tid];
-		}
-		__syncthreads(); 
-	}
-	if (SQRT_BLOCK_SIZE >= 256) {
-		if (tid < 128) {
-			sdata[tid] += sdata[tid + 128]; 
-			sdata2[tid] = sdata[tid]*sdata[tid];
-		}
-		__syncthreads(); 
-	}
-	if (SQRT_BLOCK_SIZE >= 128) {
-		if (tid < 64) {
-			sdata[tid] += sdata[tid + 64]; 
-			sdata2[tid] = sdata[tid]*sdata[tid];
-		}
-		__syncthreads(); 
-	}
+  // do reduction in shared mem
+  for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+    if (tid < s) {
+	  sdata[tid] += sdata[tid + s];
+	  sdata2[tid] += sdata2[tid + s]*sdata2[tid + s];
+    }
 
+    cg::sync(cta);
+  }
 
-    if (tid < 32) warpReduce<SQRT_BLOCK_SIZE>(sdata, tid);
-    if (tid == 0){
-	g_odata[blockIdx.x] = sdata[0];
-	g_odata2[blockIdx.x] = sdata2[0];
-	}
+  // write result for this block to global mem
+  if (tid == 0) {
+	  sum_d[blockIdx.x] = sdata[0];
+	  sum2_d[blockIdx.x] = sdata2[0];
+  }
+
 }
 
 int main(int argc, char *argv[]) 
@@ -313,7 +277,7 @@ int main(int argc, char *argv[])
 		sum2 = 0;
 
 		// REDUCTION
-		reduceCUDA<<<grid,threads>>>(image_d, sum_d, sum2_d,height * width * pixelWidth);
+		reduction<<<grid,threads>>>(image_d, sum_d, sum2_d, height * width * pixelWidth);
 		//reduction<<<grid, threads>>>(image_d, sum);
 		cudaDeviceSynchronize();
 
