@@ -40,30 +40,30 @@ double get_time() {
 
 //COMPUTE 1
 // --- 32 floating point arithmetic operations per element -> 32*(height-1)*(width-1) in total
-__global__ void compute_1(int height, int width, long k, unsigned char *image_d, float *north_deriv_d, 
-						float *south_deriv_d, float *west_deriv_d, float *east_deriv_d, float gradient_square,
-						float laplacian, float num, float den, float std_dev, float std_dev2, float *diff_coef_d)
+__global__ void compute_1(int height, int width, long k, unsigned char *image_device, float *north_deriv_device, 
+						float *south_deriv_device, float *west_deriv_device, float *east_deriv_device, float gradient_square,
+						float laplacian, float num, float den, float std_dev, float std_dev2, float *diff_coef_device)
 {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if(i > 0 && i < height-1 && j > 0 && j < width-1) {
 		k = i * width + j;	// position of current element
-		north_deriv_d[k] = image_d[(i - 1) * width + j] - image_d[k];	// north derivative --- 1 floating point arithmetic operations
-		south_deriv_d[k] = image_d[(i + 1) * width + j] - image_d[k];	// south derivative --- 1 floating point arithmetic operations
-		west_deriv_d[k] = image_d[i * width + (j - 1)] - image_d[k];	// west derivative --- 1 floating point arithmetic operations
-		east_deriv_d[k] = image_d[i * width + (j + 1)] - image_d[k];	// east derivative --- 1 floating point arithmetic operations
-		gradient_square = (north_deriv_d[k] * north_deriv_d[k] + south_deriv_d[k] * south_deriv_d[k] + west_deriv_d[k] * west_deriv_d[k] + east_deriv_d[k] * east_deriv_d[k]) / (image_d[k] * image_d[k]); // 9 floating point arithmetic operations
-		laplacian = (north_deriv_d[k] + south_deriv_d[k] + west_deriv_d[k] + east_deriv_d[k]) / image_d[k]; // 4 floating point arithmetic operations
+		north_deriv_device[k] = image_device[(i - 1) * width + j] - image_device[k];	// north derivative --- 1 floating point arithmetic operations
+		south_deriv_device[k] = image_device[(i + 1) * width + j] - image_device[k];	// south derivative --- 1 floating point arithmetic operations
+		west_deriv_device[k] = image_device[i * width + (j - 1)] - image_device[k];	// west derivative --- 1 floating point arithmetic operations
+		east_deriv_device[k] = image_device[i * width + (j + 1)] - image_device[k];	// east derivative --- 1 floating point arithmetic operations
+		gradient_square = (north_deriv_device[k] * north_deriv_device[k] + south_deriv_device[k] * south_deriv_device[k] + west_deriv_device[k] * west_deriv_device[k] + east_deriv_device[k] * east_deriv_device[k]) / (image_device[k] * image_device[k]); // 9 floating point arithmetic operations
+		laplacian = (north_deriv_device[k] + south_deriv_device[k] + west_deriv_device[k] + east_deriv_device[k]) / image_device[k]; // 4 floating point arithmetic operations
 		num = (0.5 * gradient_square) - ((1.0 / 16.0) * (laplacian * laplacian)); // 5 floating point arithmetic operations
 		den = 1 + (.25 * laplacian); // 2 floating point arithmetic operations
 		std_dev2 = num / (den * den); // 2 floating point arithmetic operations
 		den = (std_dev2 - std_dev) / (std_dev * (1 + std_dev)); // 4 floating point arithmetic operations
-		diff_coef_d[k] = 1.0 / (1.0 + den); // 2 floating point arithmetic operations
-		if (diff_coef_d[k] < 0) {
-			diff_coef_d[k] = 0;
-		} else if (diff_coef_d[k] > 1)	{
-			diff_coef_d[k] = 1;
+		diff_coef_device[k] = 1.0 / (1.0 + den); // 2 floating point arithmetic operations
+		if (diff_coef_device[k] < 0) {
+			diff_coef_device[k] = 0;
+		} else if (diff_coef_device[k] > 1)	{
+			diff_coef_device[k] = 1;
 		}
 	} else {
 		return;
@@ -72,64 +72,69 @@ __global__ void compute_1(int height, int width, long k, unsigned char *image_d,
 
 // COMPUTE 2
 // divergence and image update --- 10 floating point arithmetic operations per element -> 10*(height-1)*(width-1) in total
-__global__ void compute_2(int height, int width, long k, unsigned char *image_d, float lambda, float diff_coef_north, 
-						float diff_coef_south, float diff_coef_west, float diff_coef_east, float divergence, float *diff_coef_d,
-						float *north_deriv_d, float *south_deriv_d, float *west_deriv_d, float *east_deriv_d)
+__global__ void compute_2(int height, int width, long k, unsigned char *image_device, float lambda, float diff_coef_north, 
+						float diff_coef_south, float diff_coef_west, float diff_coef_east, float divergence, float *diff_coef_device,
+						float *north_deriv_device, float *south_deriv_device, float *west_deriv_device, float *east_deriv_device)
 {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
-
 	if(i > 0 && i < height-1 && j > 0 && j < width-1) {
 		k = i * width + j;	// get position of current element
-		diff_coef_north = diff_coef_d[k];	// north diffusion coefficient
-		diff_coef_south = diff_coef_d[(i + 1) * width + j];	// south diffusion coefficient
-		diff_coef_west = diff_coef_d[k];	// west diffusion coefficient
-		diff_coef_east = diff_coef_d[i * width + (j + 1)];	// east diffusion coefficient				
-		divergence = diff_coef_north * north_deriv_d[k] + diff_coef_south * south_deriv_d[k] + diff_coef_west * west_deriv_d[k] + diff_coef_east * east_deriv_d[k]; // --- 7 floating point arithmetic operations
-		image_d[k] = image_d[k] + 0.25 * lambda * divergence; // --- 3 floating point arithmetic operations
+		diff_coef_north = diff_coef_device[k];	// north diffusion coefficient
+		diff_coef_south = diff_coef_device[(i + 1) * width + j];// south diffusion coefficient
+		diff_coef_west = diff_coef_device[k];	// west diffusion coefficient
+		diff_coef_east = diff_coef_device[i * width + (j + 1)];	// east diffusion coefficient				
+		divergence = diff_coef_north * north_deriv_device[k] + diff_coef_south * south_deriv_device[k] + diff_coef_west * west_deriv_device[k] + diff_coef_east * east_deriv_device[k]; // --- 7 floating point arithmetic operations
+		image_device[k] = image_device[k] + 0.25 * lambda * divergence; // --- 3 floating point arithmetic operations
 	} else {
 		return;
 	}
 }	
 
 //REDUCTION
-__global__ void reduction(unsigned char *image_d, float *sum_d, float *sum2_d, int length)
+__global__ void reduction(unsigned char *image_device, float *sum_device, float *sum2_device, int len)
 {
-	__shared__ float seg_sum[2 * SQRT_BLOCK_SIZE];
-	int globalThreadId = blockDim.x * blockIdx.x + threadIdx.x;
-	unsigned int threadId = threadIdx.x;
-	unsigned int start = 2 * blockIdx.x * blockDim.x;
+	
+	unsigned int init = 2 * blockIdx.x * blockDim.x;
+	__shared__ float shared_sum[2 * SQRT_BLOCK_SIZE]; //do reduction in shared mem
+	__shared__ float shared_sum2[2 * SQRT_BLOCK_SIZE]; //do reduction in shared mem
 
-	if((start + threadId) <= length) 
-	{
-		seg_sum[threadId] = image_d[start + threadId];
-	} else {
-		seg_sum[threadId] = 0.0;
-	}
 
-	if((start + blockDim.x + threadId) <= length)
-	{
-		seg_sum[blockDim.x + threadId] = image_d[start + blockDim.x + threadId]; 
-	} else {
-		seg_sum[blockDim.x + threadId] = 0.0;
-	}
-
-	for(unsigned int stage = blockDim.x; stage > 0; stage /= 2) 
+	for(unsigned int i = 0; i < blockDim.x; i *= 2) 
 	{
 		__syncthreads();
 
-		if(threadId < stage)
+		if(threadIdx.x < i)
 		{
-			seg_sum[threadId] += seg_sum[threadId + stage];
+			shared_sum[threadIdx.x] += shared_sum[threadIdx.x + i];
+			shared_sum2[threadIdx.x] += shared_sum2[threadIdx.x + i]*shared_sum2[threadIdx.x + i];
 		}
 
 		__syncthreads();
 
-		if(threadId == 0 && (globalThreadId * 2) <= length){
-			sum_d[blockIdx.x] = seg_sum[threadId];
-  			sum2_d[blockIdx.x] = seg_sum[threadId]*seg_sum[threadId];
+		if(threadIdx.x == 0 && ((blockDim.x * blockIdx.x + threadIdx.x) * 2) <= len){
+			sum_device[blockIdx.x] = shared_sum[threadIdx.x];
+  			sum2_device[blockIdx.x] = shared_sum2[threadIdx.x]*shared_sum2[threadIdx.x];
 		}
 	}
+		if((init + blockDim.x + threadIdx.x) <= len)
+	{
+		shared_sum[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x]; 
+		shared_sum2[blockDim.x + threadIdx.x] = image_device[init + blockDim.x + threadIdx.x];
+	} else {
+		shared_sum[blockDim.x + threadIdx.x] = 0.0;
+		shared_sum2[blockDim.x + threadIdx.x] =0;
+	}
+		if((init + threadIdx.x) <= len) 
+	{
+		shared_sum[threadIdx.x] = image_device[init + threadIdx.x];
+		shared_sum2[threadIdx.x] = image_device[init + threadIdx.x];
+	} else {
+		shared_sum[threadIdx.x] = 0.0;
+		shared_sum2[threadIdx.x] = 0.0;
+	}
+
+
 
 }
 
@@ -153,12 +158,12 @@ int main(int argc, char *argv[])
 	float *diff_coef;	// diffusion coefficient
 	float diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east;	// directional diffusion coefficients
 	long k;	// current pixel index
-	unsigned char *image_d;
+	unsigned char *image_device;
 
 	//device variables
-	float *north_deriv_d, *south_deriv_d, *west_deriv_d, *east_deriv_d;
-	float *sum_d, *sum2_d;
-	float *diff_coef_d;
+	float *north_deriv_device, *south_deriv_device, *west_deriv_device, *east_deriv_device;
+	float *sum_device, *sum2_device;
+	float *diff_coef_device;
 
 	time_1 = get_time();	
 
@@ -202,33 +207,33 @@ int main(int argc, char *argv[])
 
 	// Part IV: allocate variables
 	north_deriv = (float*) malloc(sizeof(float) * n_pixels);	// north derivative
-	cudaMalloc((void**)&north_deriv_d, sizeof(float)*n_pixels);
-	cudaMemcpy((void**)north_deriv_d, north_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&north_deriv_device, sizeof(float)*n_pixels);
+	cudaMemcpy((void**)north_deriv_device, north_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
 	
 	south_deriv = (float*) malloc(sizeof(float) * n_pixels);	// south derivative
-	cudaMalloc((void**)&south_deriv_d, sizeof(float)*n_pixels);
-	cudaMemcpy((void**)south_deriv_d, south_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&south_deriv_device, sizeof(float)*n_pixels);
+	cudaMemcpy((void**)south_deriv_device, south_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
 	
 	west_deriv = (float*) malloc(sizeof(float) * n_pixels);	// west derivative
-	cudaMalloc((void**)&west_deriv_d, sizeof(float)*n_pixels);
-	cudaMemcpy((void**)west_deriv_d, west_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&west_deriv_device, sizeof(float)*n_pixels);
+	cudaMemcpy((void**)west_deriv_device, west_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
 	
 	east_deriv = (float*) malloc(sizeof(float) * n_pixels);	// east derivative
-	cudaMalloc((void**)&east_deriv_d, sizeof(float)*n_pixels);
-	cudaMemcpy((void**)east_deriv_d, east_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&east_deriv_device, sizeof(float)*n_pixels);
+	cudaMemcpy((void**)east_deriv_device, east_deriv, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
 	
 	diff_coef  = (float*) malloc(sizeof(float) * n_pixels);	// diffusion coefficient
-	cudaMalloc((void**)&diff_coef_d, sizeof(float)*n_pixels);
-	cudaMemcpy((void**)diff_coef_d, diff_coef, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&diff_coef_device, sizeof(float)*n_pixels);
+	cudaMemcpy((void**)diff_coef_device, diff_coef, sizeof(float)*n_pixels, cudaMemcpyHostToDevice);
 
-	cudaMalloc((void**)&sum_d, sizeof(float));
-	cudaMemcpy((void**)sum_d, &sum, sizeof(float), cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&sum_device, sizeof(float));
+	cudaMemcpy((void**)sum_device, &sum, sizeof(float), cudaMemcpyHostToDevice);
 
-	 cudaMalloc((void**)&sum2_d, sizeof(float));
-	 cudaMemcpy((void**)sum2_d, &sum2, sizeof(float), cudaMemcpyHostToDevice);
+	 cudaMalloc((void**)&sum2_device, sizeof(float));
+	 cudaMemcpy((void**)sum2_device, &sum2, sizeof(float), cudaMemcpyHostToDevice);
 
-	cudaMalloc((void**)&image_d, (sizeof(unsigned char)*n_pixels) * pixelWidth);
-	cudaMemcpy((void**)image_d, image, (sizeof(unsigned char)*n_pixels) * pixelWidth, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&image_device, (sizeof(unsigned char)*n_pixels) * pixelWidth);
+	cudaMemcpy((void**)image_device, image, (sizeof(unsigned char)*n_pixels) * pixelWidth, cudaMemcpyHostToDevice);
 
 
 	time_4 = get_time();
@@ -243,16 +248,16 @@ int main(int argc, char *argv[])
 		sum2 = 0;
 
 		// REDUCTION
-		reduction<<<grid,threads>>>(image_d, sum_d, sum2_d, height * width * pixelWidth);
-		//reduction<<<grid, threads>>>(image_d, sum);
+		reduction<<<grid,threads>>>(image_device, sum_device, sum2_device, height * width * pixelWidth);
+		//reduction<<<grid, threads>>>(image_device, sum);
 		cudaDeviceSynchronize();
 
 		// Get results back to host
-		//cudaMemcpy(&sum,sum_d,sizeof(float), cudaMemcpyDeviceToHost);
-		cudaMemcpy(&sum,sum_d,sizeof(float), cudaMemcpyDeviceToHost);
-		cudaMemcpy(&sum2,sum2_d,sizeof(float), cudaMemcpyDeviceToHost);
+		//cudaMemcpy(&sum,sum_device,sizeof(float), cudaMemcpyDeviceToHost);
+		cudaMemcpy(&sum,sum_device,sizeof(float), cudaMemcpyDeviceToHost);
+		cudaMemcpy(&sum2,sum2_device,sizeof(float), cudaMemcpyDeviceToHost);
 		//sum2 = sum*sum;
-		//cudaMemcpy(&sum2,sum2_d,sizeof(float), cudaMemcpyDeviceToHost);
+		//cudaMemcpy(&sum2,sum2_device,sizeof(float), cudaMemcpyDeviceToHost);
 
 		// STATISTICS
 		mean = sum / n_pixels; // --- 1 floating point arithmetic operations
@@ -260,14 +265,14 @@ int main(int argc, char *argv[])
 		std_dev = variance / (mean * mean); // --- 2 floating point arithmetic operations
 	
 		// COMPUTE 1
-	    compute_1<<<grid,threads>>>(height, width, k, image_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d, gradient_square, laplacian, num, den, std_dev, std_dev2, diff_coef_d);
+	    compute_1<<<grid,threads>>>(height, width, k, image_device, north_deriv_device, south_deriv_device, west_deriv_device, east_deriv_device, gradient_square, laplacian, num, den, std_dev, std_dev2, diff_coef_device);
 	    cudaDeviceSynchronize();
 
 		// COMPUTE 2 
-		compute_2<<<grid,threads>>>(height, width, k, image_d, lambda, diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east, divergence, diff_coef_d, north_deriv_d, south_deriv_d, west_deriv_d, east_deriv_d);
+		compute_2<<<grid,threads>>>(height, width, k, image_device, lambda, diff_coef_north, diff_coef_south, diff_coef_west, diff_coef_east, divergence, diff_coef_device, north_deriv_device, south_deriv_device, west_deriv_device, east_deriv_device);
 
 		// Get Output Image back to the host
-		cudaMemcpy(image,image_d,sizeof(unsigned char)*n_pixels * pixelWidth, cudaMemcpyDeviceToHost);
+		cudaMemcpy(image,image_device,sizeof(unsigned char)*n_pixels * pixelWidth, cudaMemcpyDeviceToHost);
 	}
 
 	time_5 = get_time();
@@ -296,25 +301,25 @@ int main(int argc, char *argv[])
 
 	// Part VII: deallocate variables
 	stbi_image_free(image);
-	cudaFree(image_d);
+	cudaFree(image_device);
 
 	free(north_deriv);
-	cudaFree(north_deriv_d);
+	cudaFree(north_deriv_device);
 
 	free(south_deriv);
-	cudaFree(south_deriv_d);
+	cudaFree(south_deriv_device);
 
 	free(west_deriv);
-	cudaFree(west_deriv_d);
+	cudaFree(west_deriv_device);
 
 	free(east_deriv);
-	cudaFree(east_deriv_d);
+	cudaFree(east_deriv_device);
 
 	free(diff_coef);
-	cudaFree(diff_coef_d);
+	cudaFree(diff_coef_device);
 
-	cudaFree(sum_d);
-	cudaFree(sum2_d);
+	cudaFree(sum_device);
+	cudaFree(sum2_device);
 
 	time_8 = get_time();
 
