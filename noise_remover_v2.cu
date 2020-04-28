@@ -98,7 +98,7 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_de
 
 	if(i > 0 && i < height-1 && j > 0 && j < width-1) {
 		k = i * width + j;	// get position of current element
-		diff_coef_local = diff_coef_device[k];
+		float diff_coef_local = diff_coef_device[k];
 		diff_coef_north = diff_coef_local;	// north diffusion coefficient
 		diff_coef_south = diff_coef_device[(i + 1) * width + j];	// south diffusion coefficient
 		diff_coef_west = diff_coef_local;	// west diffusion coefficient
