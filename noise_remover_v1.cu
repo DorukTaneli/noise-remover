@@ -118,11 +118,11 @@ __global__ void reduction(unsigned char *image_device, float *sum_device, float 
 
 
 
-	for(unsigned int i = 0; i < blockDim.x; i *= 2) 
+	for(unsigned int i = blockDim.x; i > 0; i /= 2) 
 	{
 		__syncthreads();
 
-		if(threadIdx.x > i)
+		if(threadIdx.x < i)
 		{
 			shared_sum[threadIdx.x] += shared_sum[threadIdx.x + i];
 			shared_sum2[threadIdx.x] += shared_sum2[threadIdx.x + i]*shared_sum2[threadIdx.x + i];
