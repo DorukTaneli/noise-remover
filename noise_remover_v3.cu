@@ -79,65 +79,6 @@ __global__ void compute_1(int height, int width, long k, unsigned char *image_d,
 	}
 }
 
-__global__ void compute_1_shared(int height, int width, long k, unsigned char *image_d, float *north_deriv_d, 
-						float *south_deriv_d, float *west_deriv_d, float *east_deriv_d, float gradient_square,
-						float laplacian, float num, float den, float std_dev, float std_dev2, float *diff_coef_d)
-{
-	__shared__ unsigned char image_s[SQRT_BLOCK_SIZE][SQRT_BLOCK_SIZE];
-	__shared__ float north_s[SQRT_BLOCK_SIZE][SQRT_BLOCK_SIZE];
-	__shared__ float south_s[SQRT_BLOCK_SIZE][SQRT_BLOCK_SIZE];
-	__shared__ float west_s[SQRT_BLOCK_SIZE][SQRT_BLOCK_SIZE];
-	__shared__ float east_s[SQRT_BLOCK_SIZE][SQRT_BLOCK_SIZE];
-	__shared__ float diff_coef_s[SQRT_BLOCK_SIZE][SQRT_BLOCK_SIZE];
-
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	int j = blockIdx.y * blockDim.y + threadIdx.y;
-
-	if(i > 0 && i < height-1 && j > 0 && j < width-1) {
-		k = i * width + j;	// position of current element
-
-		image_s[threadIdx.x][threadIdx.y] = image_d[k];
-		__syncthreads();
-
-		unsigned char image_dks = image_s[threadIdx.x][threadIdx.y];
-
-		north_s[threadIdx.x][threadIdx.y] = image_d[(i - 1) * width + j] - image_dks;	// north derivative --- 1 floating point arithmetic operations
-		south_s[threadIdx.x][threadIdx.y] = image_d[(i + 1) * width + j] - image_dks;	// south derivative --- 1 floating point arithmetic operations
-		west_s[threadIdx.x][threadIdx.y] = image_d[i * width + (j - 1)] - image_dks;	// west derivative --- 1 floating point arithmetic operations
-		east_s[threadIdx.x][threadIdx.y] = image_d[i * width + (j + 1)] - image_dks;	// east derivative --- 1 floating point arithmetic operations
-		
-		float north_deriv_dks = north_s[threadIdx.x][threadIdx.y]; 
-		float south_deriv_dks = south_s[threadIdx.x][threadIdx.y]; 
-		float west_deriv_dks = west_s[threadIdx.x][threadIdx.y]; 
-		float east_deriv_dks = east_s[threadIdx.x][threadIdx.y]; 
-		__syncthreads();
-
-		gradient_square = (north_deriv_dks * north_deriv_dks + south_deriv_dks * south_deriv_dks + west_deriv_dks * west_deriv_dks + east_deriv_dks * east_deriv_dks) / (image_dks * image_dks); // 9 floating point arithmetic operations
-		laplacian = (north_deriv_dks + south_deriv_dks + west_deriv_dks + east_deriv_dks) / image_dks; // 4 floating point arithmetic operations
-		num = (0.5 * gradient_square) - ((1.0 / 16.0) * (laplacian * laplacian)); // 5 floating point arithmetic operations
-		den = 1 + (.25 * laplacian); // 2 floating point arithmetic operations
-		std_dev2 = num / (den * den); // 2 floating point arithmetic operations
-		den = (std_dev2 - std_dev) / (std_dev * (1 + std_dev)); // 4 floating point arithmetic operations
-
-		diff_coef_s[threadIdx.x][threadIdx.y]= 1.0 / (1.0 + den); // 2 floating point arithmetic operation
-		float diff_coef_dks = diff_coef_s[threadIdx.x][threadIdx.y];
-		if (diff_coef_dks < 0) {
-			diff_coef_s[threadIdx.x][threadIdx.y] = 0.0;
-		} else if (diff_coef_dks > 1)	{
-			diff_coef_s[threadIdx.x][threadIdx.y] = 1.0;
-		}
-		__syncthreads();
-		north_deriv_d[k] = north_s[threadIdx.x][threadIdx.y];
-		south_deriv_d[k] = south_s[threadIdx.x][threadIdx.y];
-		west_deriv_d[k] = west_s[threadIdx.x][threadIdx.y];
-		east_deriv_d[k] = east_s[threadIdx.x][threadIdx.y];
-		diff_coef_d[k] = diff_coef_s[threadIdx.x][threadIdx.y];
-
-	} else {
-		return;
-	}
-
-}
 
 // COMPUTE 2
 // divergence and image update --- 10 floating point arithmetic operations per element -> 10*(height-1)*(width-1) in total
