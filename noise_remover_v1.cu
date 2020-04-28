@@ -138,8 +138,8 @@ __global__ void compute_2(int height, int width, long k, unsigned char *image_d,
 __global__ void reduction(unsigned char *g_idata, float *sum_d, float *sum2_d, unsigned int n) {
   // Handle to thread block group
   //cg::thread_block cta = cg::this_thread_block();
-  unsigned char *sdata = SharedMemory<unsigned char>();
-  unsigned char *sdata2 = SharedMemory<unsigned char>();
+  __shared__ unsigned char *sdata;
+  __shared__ unsigned char *sdata2;
 
   // load shared mem
   unsigned int tid = threadIdx.x;
